@@ -581,9 +581,31 @@ service: samsungtv_smart.set_art_mode
 
 # Frame TV Art Mode
 
-For Samsung Frame TVs, this integration provides comprehensive Art Mode control through dedicated services and a sensor entity.
+For Samsung Frame TVs, this integration provides comprehensive Art Mode control through dedicated services, a sensor entity, and a switch entity.
 
-**Note**: Frame Art Mode features require a Samsung Frame TV (2019 or later models recommended). A dedicated sensor `sensor.<tv_name>_frame_art` exposes all art-related attributes.
+**Note**: Frame Art Mode features require a Samsung Frame TV (2019 or later models recommended). 
+
+### Frame Art Mode Switch
+
+A switch entity `switch.<tv_name>_art_mode` is automatically created for Frame TVs. This allows easy control of Art Mode:
+
+- **Turn on**: Activates Art Mode (displays artwork)
+- **Turn off**: Deactivates Art Mode (returns to normal TV)
+
+The switch can be used in automations, scripts, dashboards, or with voice assistants:
+
+```yaml
+# Example automation: Turn on Art Mode at sunset
+automation:
+  - alias: "Art Mode at Sunset"
+    trigger:
+      - platform: sun
+        event: sunset
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.samsung_tv_art_mode
+```
 
 ### Frame Art Sensor Attributes
 
