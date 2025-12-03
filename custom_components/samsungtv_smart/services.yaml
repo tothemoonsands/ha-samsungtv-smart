@@ -19,19 +19,6 @@ select_picture_mode:
       selector:
         text:
 
-set_art_mode:
-  name: Set Art Mode
-  description: Send to samsung TV the command to set art mode.
-  fields:
-    entity_id:
-      name: Entity Name
-      description: Name of the target entity
-      required: true
-      example: "media_player.tv"
-      selector:
-        entity:
-          integration: samsungtv_smart
-
 # Frame Art Extended Services
 
 art_get_artmode:
