@@ -1967,6 +1967,33 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
 
+    async def _ensure_art_mode_ready(self) -> bool:
+        """Ensure TV is on and in Art Mode. Turn it on if needed.
+        
+        Returns:
+            bool: True if TV is ready, False if failed to turn on
+        """
+        # If TV is NOT off, assume it's ready
+        if self.state != MediaPlayerState.OFF:
+            _LOGGER.debug("Frame Art: TV appears to be on (state=%s), proceeding", self.state)
+            return True
+        
+        # TV is off, need to turn it on first
+        _LOGGER.info("Frame Art: TV is off, turning it on first...")
+        try:
+            # Turn on the TV using the standard turn_on method
+            await self.async_turn_on()
+            
+            # Wait for TV to power up and be ready
+            _LOGGER.debug("Frame Art: Waiting for TV to be ready...")
+            await asyncio.sleep(10)  # Wait longer for full TV startup
+            
+            _LOGGER.info("Frame Art: TV should now be ready")
+            return True
+        except Exception as ex:
+            _LOGGER.error("Frame Art: Failed to turn on TV: %s", ex)
+            return False
+
     async def async_art_select_image(
         self,
         content_id: str,
@@ -1977,6 +2004,12 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if not await self._ensure_frame_tv_check():
             _LOGGER.warning("Frame TV art mode is not supported on this device")
             return {"error": "Frame TV not supported"}
+        
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
+        
+        # Select the artwork
         try:
             await self._art_api.select_image(content_id, category_id, show)
             return {"success": True, "content_id": content_id}
@@ -1996,6 +2029,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if not await self._ensure_frame_tv_check():
             _LOGGER.warning("Frame TV art mode is not supported on this device")
             return {"error": "Frame TV not supported"}
+        
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
+        
         try:
             # Check if file exists
             file_exists = await self.hass.async_add_executor_job(
@@ -2325,6 +2363,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if not await self._ensure_frame_tv_check():
             _LOGGER.warning("Frame TV art mode is not supported on this device")
             return {"error": "Frame TV not supported"}
+        
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
+        
         try:
             # Convert 0-100 scale to 1-10 scale for the TV API
             # 0-10 -> 1, 11-20 -> 2, ..., 91-100 -> 10
@@ -2368,6 +2411,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if not await self._ensure_frame_tv_check():
             _LOGGER.warning("Frame TV art mode is not supported on this device")
             return {"error": "Frame TV not supported"}
+        
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
+        
         try:
             await self._art_api.change_matte(content_id, matte_id)
             return {"success": True}
@@ -2463,6 +2511,10 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             except (ValueError, TypeError):
                 return {"error": f"Invalid duration: {duration}. Valid values: 3min, 15min, 1h, 12h, 1d, 7d"}
         
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
+        
         try:
             _LOGGER.debug("Frame Art: Setting slideshow duration=%s (%d min), shuffle=%s, category=%d",
                          duration, duration_minutes, shuffle, category_id)
@@ -2501,7 +2553,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             try:
                 duration_minutes = int(duration)
             except (ValueError, TypeError):
-                return {"error": f"Invalid duration: {duration}. Valid values: 3min, 15min, 1h, 12h, 1d, 7d"}
+                return {"error": f"Invalid duration: {duration}. Valid values: 3min, 15min, h, 12h, 1d, 7d"}
+        
+        # Ensure TV is on and in Art Mode
+        if not await self._ensure_art_mode_ready():
+            return {"error": "Failed to turn on TV"}
         
         try:
             _LOGGER.debug("Frame Art: Setting auto rotation duration=%s (%d min), shuffle=%s, category=%d",
