@@ -410,117 +410,136 @@ class SamsungTVAsyncArt:
         """Get information about the currently displayed artwork."""
         return await self._send_art_request({"request": "get_current_artwork"})
 
-    async def get_thumbnail_list(self, content_ids: list[str] | str) -> dict[str, bytes]:
-        """Get thumbnails for multiple pieces of art using get_thumbnail_list API."""
-        if isinstance(content_ids, str):
-            content_ids = [content_ids]
-        
-        content_id_list = [{"content_id": cid} for cid in content_ids]
-        
-        data = await self._send_art_request({
-            "request": "get_thumbnail_list",
-            "content_id_list": content_id_list,
-            "conn_info": {
-                "d2d_mode": "socket",
-                "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
-                "id": self._get_uuid(),
+    async def get_thumbnail_list(self, content_id_list: list[dict]) -> dict[str, bytes]:
+        """Get thumbnails for a list of content IDs (multi-download)."""
+        _LOGGER.debug("Art API: Requesting get_thumbnail_list for %s", content_id_list)
+
+        data = await self._send_art_request(
+            {
+                "request": "get_thumbnail_list",
+                "content_id_list": content_id_list,
+                "conn_info": {
+                    "d2d_mode": "socket",
+                    "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
+                    "id": self._get_uuid(),
+                },
             },
-        }, timeout=15)
-        
+            timeout=15,
+        )
+
         if not data:
             _LOGGER.debug("Art API: No response for get_thumbnail_list")
             return {}
-        
-        # Check for error in response
+
+        # Si la TV répond directement par un event d'erreur
         if data.get("event") == "error":
-            _LOGGER.debug("Art API: get_thumbnail_list returned error: %s", data.get("error_code"))
+            _LOGGER.debug(
+                "Art API: get_thumbnail_list returned error: %s",
+                data.get("error_code"),
+            )
             return {}
-        
+
         try:
             conn_info = data.get("conn_info", "{}")
             _LOGGER.debug("Art API: get_thumbnail_list conn_info raw: %s", conn_info)
-            
+
             if isinstance(conn_info, str):
                 conn_info = json.loads(conn_info)
-            
-            # conn_info might be nested or have different structure
+
             ip = conn_info.get("ip")
             port = conn_info.get("port")
             secured = conn_info.get("secured", False)
-            
+
             if not ip or not port:
-                _LOGGER.debug("Art API: Invalid conn_info - ip=%s, port=%s", ip, port)
-                return {}
-            
-            _LOGGER.debug("Art API: Connecting to thumbnail socket %s:%s (secured=%s)", ip, port, secured)
-            
-            # Try without SSL first (some TVs report secured=true but don't actually use SSL)
-            reader = None
-            writer = None
-            connection_error = None
-            
-            # First attempt: without SSL
-            try:
-                _LOGGER.debug("Art API: Attempting connection without SSL...")
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(ip, int(port)),
-                    timeout=5,
+                _LOGGER.debug(
+                    "Art API: Invalid conn_info for thumbnail_list - ip=%s, port=%s",
+                    ip,
+                    port,
                 )
-                _LOGGER.debug("Art API: Connected without SSL")
-            except Exception as ex:
-                _LOGGER.debug("Art API: Non-SSL connection failed: %s", ex)
-                connection_error = ex
-            
-            # Second attempt: with SSL if first failed and secured=true
-            if writer is None and secured:
-                try:
-                    _LOGGER.debug("Art API: Attempting connection with SSL...")
-                    ssl_context = _get_ssl_context()
-                    reader, writer = await asyncio.wait_for(
-                        asyncio.open_connection(ip, int(port), ssl=ssl_context),
-                        timeout=5,
-                    )
-                    _LOGGER.debug("Art API: Connected with SSL")
-                except Exception as ex:
-                    _LOGGER.debug("Art API: SSL connection failed: %s", ex)
-                    connection_error = ex
-            
-            if writer is None:
-                _LOGGER.debug("Art API: Could not connect to thumbnail socket")
                 return {}
-            
+
+            ssl_context = _get_ssl_context() if secured else None
+            _LOGGER.debug(
+                "Art API: Opening thumbnail socket %s:%s (ssl=%s)",
+                ip,
+                port,
+                ssl_context is not None,
+            )
+
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(ip, int(port), ssl=ssl_context),
+                timeout=10,
+            )
+            _LOGGER.debug("Art API: Connected to thumbnail socket")
+
             try:
-                thumbnail_data_dict = {}
+                thumbnail_data_dict: dict[str, bytes] = {}
                 total_num_thumbnails = 1
                 current_thumb = -1
-                
+
                 while current_thumb + 1 < total_num_thumbnails:
-                    _LOGGER.debug("Art API: Reading thumbnail header...")
-                    header_len = int.from_bytes(await reader.readexactly(4), "big")
+                    _LOGGER.debug("Art API: Reading thumbnail header.")
+                    header_len = int.from_bytes(
+                        await reader.readexactly(4), "big"
+                    )
                     _LOGGER.debug("Art API: Header length: %d", header_len)
-                    header = json.loads(await reader.readexactly(header_len))
+
+                    header_raw = await reader.readexactly(header_len)
+                    header = json.loads(header_raw)
                     _LOGGER.debug("Art API: Thumbnail header: %s", header)
+
                     thumbnail_data_len = int(header["fileLength"])
                     current_thumb = int(header["num"])
                     total_num_thumbnails = int(header["total"])
-                    filename = "{}.{}".format(header.get("fileID", header.get("content_id", "unknown")), header.get("fileType", "jpg"))
-                    _LOGGER.debug("Art API: Reading thumbnail data: %d bytes", thumbnail_data_len)
-                    thumbnail_data_dict[filename] = await reader.readexactly(thumbnail_data_len)
-                    _LOGGER.debug("Art API: Got thumbnail %s (%d bytes)", filename, len(thumbnail_data_dict[filename]))
-                
+                    filename = "{}.{}".format(
+                        header.get("fileID", header.get("content_id", "unknown")),
+                        header.get("fileType", "jpg"),
+                    )
+
+                    _LOGGER.debug(
+                        "Art API: Reading %d bytes for thumbnail %d/%d (%s)",
+                        thumbnail_data_len,
+                        current_thumb + 1,
+                        total_num_thumbnails,
+                        filename,
+                    )
+                    thumbnail_data = await reader.readexactly(thumbnail_data_len)
+                    thumbnail_data_dict[filename] = thumbnail_data
+                    _LOGGER.debug(
+                        "Art API: Got thumbnail %s (%d bytes)",
+                        filename,
+                        len(thumbnail_data),
+                    )
+
                 return thumbnail_data_dict
+
             finally:
                 writer.close()
                 await writer.wait_closed()
-                
+                _LOGGER.debug("Art API: Thumbnail socket closed")
+
         except asyncio.TimeoutError:
             _LOGGER.debug("Art API: Timeout connecting to thumbnail socket")
             return {}
+        except asyncio.IncompleteReadError as ex:
+            _LOGGER.debug(
+                "Art API: Incomplete read in get_thumbnail_list "
+                "(%d bytes read, %d expected)",
+                len(ex.partial or b""),
+                ex.expected,
+            )
+            return {}
         except Exception as ex:
-            _LOGGER.debug("Art API: Error getting thumbnail_list: %s (type: %s)", ex, type(ex).__name__)
+            _LOGGER.debug(
+                "Art API: Error getting thumbnail_list: %s (type: %s)",
+                ex,
+                type(ex).__name__,
+            )
             import traceback
+
             _LOGGER.debug("Art API: Traceback: %s", traceback.format_exc())
             return {}
+
 
     async def get_thumbnail(self, content_id: str) -> bytes | None:
         """Get thumbnail for a specific piece of art."""
@@ -612,111 +631,152 @@ class SamsungTVAsyncArt:
             _LOGGER.debug("Art API: Error getting thumbnail: %s (type: %s)", ex, type(ex).__name__)
             return None
 
-    async def _get_thumbnail_via_list(self, content_id: str, retry_count: int = 0) -> bytes | None:
-        """Get thumbnail using get_thumbnail_list API - based on reference implementation."""
-        _LOGGER.debug("Art API: Trying get_thumbnail_list for %s (attempt %d)", content_id, retry_count + 1)
-        
-        data = await self._send_art_request({
-            "request": "get_thumbnail_list",
-            "content_id_list": [{"content_id": content_id}],
-            "conn_info": {
-                "d2d_mode": "socket",
-                "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
-                "id": self._get_uuid(),
+    async def _get_thumbnail_via_list(
+        self,
+        content_id: str,
+        retry_count: int = 0,
+    ) -> bytes | None:
+        """Get thumbnail for a single content via get_thumbnail_list."""
+        _LOGGER.debug(
+            "Art API: Trying get_thumbnail_list for %s (attempt %d)",
+            content_id,
+            retry_count + 1,
+        )
+
+        data = await self._send_art_request(
+            {
+                "request": "get_thumbnail_list",
+                "content_id_list": [{"content_id": content_id}],
+                "conn_info": {
+                    "d2d_mode": "socket",
+                    "connection_id": random.randrange(4 * 1024 * 1024 * 1024),
+                    "id": self._get_uuid(),
+                },
             },
-        }, timeout=15)
-        
+            timeout=15,
+        )
+
         if not data:
-            _LOGGER.debug("Art API: No response for get_thumbnail_list")
+            _LOGGER.debug("Art API: No response for get_thumbnail_list (single)")
             return None
-        
+
+        # Sur certains modèles, la TV répond directement "event: error" (code -1)
         if data.get("event") == "error":
-            _LOGGER.debug("Art API: get_thumbnail_list error: %s", data.get("error_code"))
+            _LOGGER.debug(
+                "Art API: get_thumbnail_list error for %s: %s",
+                content_id,
+                data.get("error_code"),
+            )
             return None
-        
+
         try:
             conn_info = data.get("conn_info", "{}")
-            _LOGGER.debug("Art API: get_thumbnail_list conn_info: %s", conn_info)
-            
+            _LOGGER.debug(
+                "Art API: get_thumbnail_list (single) conn_info: %s", conn_info
+            )
+
             if isinstance(conn_info, str):
                 conn_info = json.loads(conn_info)
-            
+
             ip = conn_info.get("ip")
             port = conn_info.get("port")
             secured = conn_info.get("secured", False)
-            
+
             if not ip or not port:
-                _LOGGER.debug("Art API: Invalid conn_info")
+                _LOGGER.debug("Art API: Invalid conn_info for %s", content_id)
                 return None
-            
-            _LOGGER.debug("Art API: Connecting to %s:%s (secured=%s)", ip, port, secured)
-            
-            # Match reference implementation exactly:
-            # ssl_context = get_ssl_context() if conn_info.get("secured", False) else None
-            # reader, writer = await asyncio.open_connection(ip, port, ssl=ssl_context)
+
             ssl_context = _get_ssl_context() if secured else None
-            
+            _LOGGER.debug(
+                "Art API: Opening connection for %s to %s:%s (ssl=%s)",
+                content_id,
+                ip,
+                port,
+                ssl_context is not None,
+            )
+
             try:
-                _LOGGER.debug("Art API: Opening connection (ssl=%s)...", ssl_context is not None)
-                reader, writer = await asyncio.open_connection(
-                    ip, int(port), ssl=ssl_context
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, int(port), ssl=ssl_context),
+                    timeout=10,
                 )
-                _LOGGER.debug("Art API: Connected successfully")
+                _LOGGER.debug("Art API: Connected successfully for %s", content_id)
             except ConnectionResetError as ex:
-                _LOGGER.debug("Art API: Connection reset: %s", ex)
-                # For Art Store images, retry with a delay
+                _LOGGER.debug("Art API: Connection reset for %s: %s", content_id, ex)
+                # Retry uniquement pour le Art Store (SAM-), comme discuté
                 if content_id.startswith("SAM-") and retry_count < 2:
-                    _LOGGER.debug("Art API: Art Store image, retrying after delay...")
+                    _LOGGER.debug(
+                        "Art API: Art Store image %s, retrying after delay", content_id
+                    )
                     await asyncio.sleep(0.5 * (retry_count + 1))
-                    return await self._get_thumbnail_via_list(content_id, retry_count + 1)
+                    return await self._get_thumbnail_via_list(
+                        content_id, retry_count + 1
+                    )
                 return None
-            except Exception as ex:
-                _LOGGER.debug("Art API: Connection failed: %s (type: %s)", ex, type(ex).__name__)
-                return None
-            
+
             try:
-                # Read thumbnails exactly like reference implementation
-                total_num_thumbnails = 1
-                current_thumb = -1
-                thumbnail_data = None
-                
-                while current_thumb + 1 < total_num_thumbnails:
-                    _LOGGER.debug("Art API: Reading header (thumb %d of %d)...", 
-                                current_thumb + 2, total_num_thumbnails)
-                    header_len = int.from_bytes(await reader.readexactly(4), "big")
-                    _LOGGER.debug("Art API: Header length: %d", header_len)
-                    header = json.loads(await reader.readexactly(header_len))
-                    _LOGGER.debug("Art API: Thumbnail header: %s", header)
-                    
-                    thumbnail_data_len = int(header["fileLength"])
-                    current_thumb = int(header["num"])
-                    total_num_thumbnails = int(header["total"])
-                    
-                    _LOGGER.debug("Art API: Reading %d bytes for thumb %d/%d...", 
-                                thumbnail_data_len, current_thumb + 1, total_num_thumbnails)
-                    thumbnail_data = await reader.readexactly(thumbnail_data_len)
-                    _LOGGER.debug("Art API: Got thumbnail data (%d bytes)", len(thumbnail_data))
-                
+                _LOGGER.debug("Art API: Reading thumbnail header for %s", content_id)
+                header_len = int.from_bytes(await reader.readexactly(4), "big")
+                _LOGGER.debug(
+                    "Art API: Header length for %s: %d", content_id, header_len
+                )
+
+                header_raw = await reader.readexactly(header_len)
+                header = json.loads(header_raw)
+                _LOGGER.debug(
+                    "Art API: Thumbnail header for %s: %s", content_id, header
+                )
+
+                thumbnail_len = int(header["fileLength"])
+                _LOGGER.debug(
+                    "Art API: Reading %d bytes of thumbnail data for %s",
+                    thumbnail_len,
+                    content_id,
+                )
+                thumbnail_data = await reader.readexactly(thumbnail_len)
+                _LOGGER.debug(
+                    "Art API: Got thumbnail for %s (%d bytes)",
+                    content_id,
+                    len(thumbnail_data),
+                )
+
                 return thumbnail_data
-                
+
+            except asyncio.IncompleteReadError as ex:
+                _LOGGER.debug(
+                    "Art API: Incomplete read for %s: %d bytes read on %d expected",
+                    content_id,
+                    len(ex.partial or b""),
+                    ex.expected,
+                )
+                # même logique : petit retry pour les images SAM- si besoin
+                if content_id.startswith("SAM-") and retry_count < 2:
+                    _LOGGER.debug(
+                        "Art API: Art Store image %s, retrying after incomplete read",
+                        content_id,
+                    )
+                    await asyncio.sleep(0.5 * (retry_count + 1))
+                    return await self._get_thumbnail_via_list(
+                        content_id, retry_count + 1
+                    )
+                return None
+
             finally:
                 writer.close()
-                try:
-                    await writer.wait_closed()
-                except Exception:
-                    pass
-        
-        except asyncio.IncompleteReadError as ex:
-            _LOGGER.debug("Art API: Incomplete read: %s", ex)
-            # For Art Store images, retry with a delay
-            if content_id.startswith("SAM-") and retry_count < 2:
-                _LOGGER.debug("Art API: Art Store image, retrying after delay...")
-                await asyncio.sleep(0.5 * (retry_count + 1))
-                return await self._get_thumbnail_via_list(content_id, retry_count + 1)
-            return None
+                await writer.wait_closed()
+                _LOGGER.debug(
+                    "Art API: Thumbnail connection closed for %s", content_id
+                )
+
         except Exception as ex:
-            _LOGGER.debug("Art API: Error in _get_thumbnail_via_list: %s (type: %s)", ex, type(ex).__name__)
+            _LOGGER.debug(
+                "Art API: Error in _get_thumbnail_via_list for %s: %s (type: %s)",
+                content_id,
+                ex,
+                type(ex).__name__,
+            )
             return None
+
 
     async def select_image(
         self,
@@ -915,22 +975,45 @@ class SamsungTVAsyncArt:
         file_type: str = "png",
         date: str | None = None,
         timeout: int = 30,
+        hass = None,
     ) -> str | None:
         """Upload a new image to the TV."""
+        _LOGGER.debug("Art API: Starting upload, file type: %s", type(file))
+        
         if isinstance(file, str):
+            _LOGGER.debug("Art API: Loading file from path: %s", file)
             file_name, file_extension = os.path.splitext(file)
             file_type = file_extension[1:].lower()
-            with open(file, "rb") as f:
-                file = f.read()
+            try:
+                # Use executor to avoid blocking the event loop
+                def read_file(path):
+                    with open(path, "rb") as f:
+                        return f.read()
+                
+                if hass:
+                    file = await hass.async_add_executor_job(read_file, file)
+                else:
+                    # Fallback for non-HA usage
+                    file = await asyncio.get_event_loop().run_in_executor(None, read_file, file)
+                    
+                _LOGGER.debug("Art API: File loaded, size: %d bytes", len(file))
+            except Exception as ex:
+                _LOGGER.error("Art API: Failed to read file: %s", ex)
+                return None
         
         file_size = len(file)
         if file_type == "jpeg":
             file_type = "jpg"
         
+        _LOGGER.debug("Art API: Upload - file_size=%d, file_type=%s, matte=%s", 
+                     file_size, file_type, matte)
+        
         if date is None:
             date = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
         
         request_id = self._get_uuid()
+        _LOGGER.debug("Art API: Sending send_image request, request_id=%s", request_id)
+        
         data = await self._send_art_request({
             "request": "send_image",
             "file_type": file_type,
@@ -945,15 +1028,30 @@ class SamsungTVAsyncArt:
             "matte_id": matte or "none",
             "portrait_matte_id": portrait_matte or "none",
             "file_size": file_size,
-        })
+        }, timeout=15)
+        
+        _LOGGER.debug("Art API: send_image response: %s", data)
         
         if not data:
+            _LOGGER.error("Art API: No response from send_image request")
+            return None
+        
+        if data.get("event") == "error":
+            _LOGGER.error("Art API: send_image error: %s", data.get("error_code"))
             return None
         
         try:
             conn_info = data.get("conn_info", "{}")
+            _LOGGER.debug("Art API: Upload conn_info (raw): %s", conn_info)
+            
             if isinstance(conn_info, str):
                 conn_info = json.loads(conn_info)
+            
+            _LOGGER.debug("Art API: Upload conn_info (parsed): %s", conn_info)
+            
+            if not conn_info.get("ip") or not conn_info.get("port"):
+                _LOGGER.error("Art API: Invalid conn_info - missing ip or port")
+                return None
             
             header = json.dumps({
                 "num": 0,
@@ -965,26 +1063,57 @@ class SamsungTVAsyncArt:
                 "version": "0.0.1",
             })
             
-            ssl_context = _get_ssl_context() if conn_info.get("secured") else None
-            reader, writer = await asyncio.open_connection(
-                conn_info["ip"],
-                int(conn_info["port"]),
-                ssl=ssl_context,
-            )
+            _LOGGER.debug("Art API: Connecting to %s:%s for upload (secured=%s)", 
+                         conn_info["ip"], conn_info["port"], conn_info.get("secured"))
             
-            writer.write(len(header).to_bytes(4, "big"))
-            writer.write(header.encode("ascii"))
-            writer.write(file)
-            await writer.drain()
-            writer.close()
-            await writer.wait_closed()
+            ssl_context = _get_ssl_context() if conn_info.get("secured") else None
+            
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(
+                        conn_info["ip"],
+                        int(conn_info["port"]),
+                        ssl=ssl_context,
+                    ),
+                    timeout=10,
+                )
+                _LOGGER.debug("Art API: Connected for upload")
+            except asyncio.TimeoutError:
+                _LOGGER.error("Art API: Timeout connecting for upload")
+                return None
+            except Exception as ex:
+                _LOGGER.error("Art API: Failed to connect for upload: %s", ex)
+                return None
+            
+            try:
+                _LOGGER.debug("Art API: Sending header (%d bytes)", len(header))
+                writer.write(len(header).to_bytes(4, "big"))
+                writer.write(header.encode("ascii"))
+                
+                _LOGGER.debug("Art API: Sending file data (%d bytes)", file_size)
+                writer.write(file)
+                await writer.drain()
+                _LOGGER.debug("Art API: Data sent successfully")
+            finally:
+                writer.close()
+                await writer.wait_closed()
             
             # Wait for image_added event
+            _LOGGER.debug("Art API: Waiting for image_added event (timeout=%ds)", timeout)
             result = await self._wait_for_response("image_added", timeout=timeout)
-            return result.get("content_id") if result else None
+            
+            if result:
+                content_id = result.get("content_id")
+                _LOGGER.info("Art API: Upload successful, content_id=%s", content_id)
+                return content_id
+            else:
+                _LOGGER.error("Art API: No image_added event received")
+                return None
             
         except Exception as ex:
             _LOGGER.error("Art API: Error uploading image: %s", ex)
+            import traceback
+            _LOGGER.debug("Art API: Upload traceback: %s", traceback.format_exc())
             return None
 
     async def delete(self, content_id: str) -> bool:

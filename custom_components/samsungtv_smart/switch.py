@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 
 from .api.art import SamsungTVAsyncArt
 from .const import (
@@ -151,8 +152,8 @@ class FrameArtModeSwitch(SwitchEntity):
         if self._media_player_entity_id:
             return self._media_player_entity_id
         
-        # Find media_player entity for this config entry
-        entity_registry = self._hass.helpers.entity_registry.async_get(self._hass)
+        # Find media_player entity for this config entry using the correct API
+        entity_registry = er.async_get(self._hass)
         for entity in entity_registry.entities.values():
             if (
                 entity.config_entry_id == self._entry.entry_id

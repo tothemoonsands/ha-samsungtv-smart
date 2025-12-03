@@ -126,10 +126,10 @@ class FrameArtCoordinator(DataUpdateCoordinator):
         self._entry = entry
         self._hass = hass
         self._last_content_id: str | None = None
-        # Disabled by default - can be enabled manually via service
-        # Thumbnail fetching can be slow/unreliable on some TV models
-        self._thumbnail_fetch_enabled = False
+        # Enabled by default - thumbnails are fetched for current artwork
+        self._thumbnail_fetch_enabled = True
         self._thumbnail_failures = 0
+        _LOGGER.info("Frame Art Coordinator initialized with thumbnail fetching enabled")
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the Frame TV."""
@@ -143,15 +143,23 @@ class FrameArtCoordinator(DataUpdateCoordinator):
         }
         
         try:
-            # Get art mode status with timeout
-            try:
-                async with asyncio.timeout(8):
-                    art_mode = await self._art_api.get_artmode()
-                    data["art_mode"] = art_mode
-            except asyncio.TimeoutError:
-                _LOGGER.debug("Timeout getting art mode status")
-            except Exception as ex:
-                _LOGGER.debug("Error getting art mode: %s", ex)
+            # First, try to get art_mode from media_player state (more reliable)
+            # This avoids double API calls and keeps sensor in sync with media_player
+            media_player_art_mode = self._get_media_player_art_mode()
+            if media_player_art_mode is not None:
+                data["art_mode"] = media_player_art_mode
+                _LOGGER.debug("Frame Art: Using media_player art_mode_status: %s", media_player_art_mode)
+            else:
+                # Fallback to direct API call if media_player state not available
+                try:
+                    async with asyncio.timeout(8):
+                        art_mode = await self._art_api.get_artmode()
+                        data["art_mode"] = art_mode
+                        _LOGGER.debug("Frame Art: Direct API art_mode: %s", art_mode)
+                except asyncio.TimeoutError:
+                    _LOGGER.debug("Timeout getting art mode status")
+                except Exception as ex:
+                    _LOGGER.debug("Error getting art mode: %s", ex)
             
             # Get current artwork with timeout
             content_id = None
@@ -179,12 +187,26 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                 and content_id
                 and (content_id != self._last_content_id or not self._has_current_thumbnail())
             ):
+                _LOGGER.info(
+                    "Frame Art: Triggering thumbnail fetch for %s (changed: %s, has_thumbnail: %s)",
+                    content_id,
+                    content_id != self._last_content_id,
+                    self._has_current_thumbnail()
+                )
                 # Schedule thumbnail fetch as background task (non-blocking)
                 self._hass.async_create_background_task(
                     self._fetch_and_save_thumbnail(content_id),
                     f"frame_art_thumbnail_{content_id}",
                 )
                 self._last_content_id = content_id
+            elif content_id and not self._thumbnail_fetch_enabled:
+                _LOGGER.debug("Frame Art: Thumbnail fetching disabled, skipping %s", content_id)
+            elif content_id:
+                _LOGGER.debug(
+                    "Frame Art: Skipping thumbnail fetch - same content_id %s, has_thumbnail: %s",
+                    content_id,
+                    self._has_current_thumbnail()
+                )
             
             # If we have a saved thumbnail, use it
             if self._has_current_thumbnail():
@@ -218,23 +240,189 @@ class FrameArtCoordinator(DataUpdateCoordinator):
             
         return data
 
+    def _get_media_player_art_mode(self) -> str | None:
+        """Get art_mode_status from the linked media_player entity."""
+        try:
+            # Find media_player entity for this config entry
+            from homeassistant.helpers import entity_registry as er
+            entity_registry = er.async_get(self._hass)
+            
+            for entity in entity_registry.entities.values():
+                if (
+                    entity.config_entry_id == self._entry.entry_id
+                    and entity.domain == "media_player"
+                ):
+                    state = self._hass.states.get(entity.entity_id)
+                    if state and state.attributes:
+                        art_mode_status = state.attributes.get("art_mode_status")
+                        if art_mode_status:
+                            return art_mode_status
+                    break
+        except Exception as ex:
+            _LOGGER.debug("Could not get media_player art_mode_status: %s", ex)
+        return None
+
     def _has_current_thumbnail(self) -> bool:
         """Check if current thumbnail file exists."""
         import os
         www_path = self._hass.config.path("www", "frame_art", "current.jpg")
         return os.path.isfile(www_path)
 
+    def _create_drm_placeholder(self) -> bytes:
+        """Create a DRM Protected placeholder image.
+        
+        Creates a dark image with visual indication that content is DRM protected.
+        Uses PIL if available for better quality, otherwise creates a basic PNG.
+        """
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            
+            # Create image with PIL
+            width, height = 480, 320
+            img = Image.new('RGB', (width, height), color=(30, 30, 35))
+            draw = ImageDraw.Draw(img)
+            
+            # Draw border
+            draw.rectangle([10, 10, width-10, height-10], outline=(60, 60, 70), width=2)
+            
+            # Draw lock icon (simple representation)
+            lock_x, lock_y = width // 2, height // 2 - 30
+            # Lock body
+            draw.rectangle([lock_x-25, lock_y, lock_x+25, lock_y+40], fill=(80, 80, 90), outline=(100, 100, 110))
+            # Lock shackle
+            draw.arc([lock_x-18, lock_y-25, lock_x+18, lock_y+5], 0, 180, fill=(100, 100, 110), width=4)
+            
+            # Try to use a font, fall back to default
+            try:
+                font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+                font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+            except Exception:
+                font_large = ImageFont.load_default()
+                font_small = ImageFont.load_default()
+            
+            # Draw text
+            text1 = "DRM Protected"
+            text2 = "Art Store Content"
+            
+            # Center text
+            bbox1 = draw.textbbox((0, 0), text1, font=font_large)
+            bbox2 = draw.textbbox((0, 0), text2, font=font_small)
+            
+            x1 = (width - (bbox1[2] - bbox1[0])) // 2
+            x2 = (width - (bbox2[2] - bbox2[0])) // 2
+            
+            draw.text((x1, lock_y + 55), text1, fill=(200, 200, 210), font=font_large)
+            draw.text((x2, lock_y + 85), text2, fill=(140, 140, 150), font=font_small)
+            
+            # Save to bytes
+            import io
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=85)
+            return buffer.getvalue()
+            
+        except ImportError:
+            # PIL not available, create a simple PNG
+            import struct
+            import zlib
+            
+            width, height = 400, 300
+            
+            # PNG signature
+            signature = b'\x89PNG\r\n\x1a\n'
+            
+            # IHDR chunk
+            ihdr_data = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
+            ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data) & 0xffffffff
+            ihdr = struct.pack('>I', 13) + b'IHDR' + ihdr_data + struct.pack('>I', ihdr_crc)
+            
+            # IDAT chunk - create simple dark image with lighter center
+            raw_data = b''
+            for y in range(height):
+                raw_data += b'\x00'  # filter byte
+                for x in range(width):
+                    # Dark background
+                    gray = 35
+                    # Lighter rectangle in center (where text would be)
+                    if 80 < x < 320 and 100 < y < 200:
+                        gray = 50
+                    # Border
+                    if x < 5 or x > width - 5 or y < 5 or y > height - 5:
+                        gray = 60
+                    raw_data += bytes([gray, gray, gray + 5])
+            
+            compressed = zlib.compress(raw_data, 9)
+            idat_crc = zlib.crc32(b'IDAT' + compressed) & 0xffffffff
+            idat = struct.pack('>I', len(compressed)) + b'IDAT' + compressed + struct.pack('>I', idat_crc)
+            
+            # IEND chunk
+            iend_crc = zlib.crc32(b'IEND') & 0xffffffff
+            iend = struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc)
+            
+            return signature + ihdr + idat + iend
+
+    async def _save_drm_placeholder(self, content_id: str) -> None:
+        """Save a DRM placeholder image when thumbnail fetch fails due to DRM."""
+        try:
+            import os
+            www_path = self._hass.config.path("www", "frame_art")
+            
+            def _write_placeholder():
+                os.makedirs(www_path, exist_ok=True)
+                
+                # Create a simple text file as placeholder indicator
+                # and a dark image
+                placeholder_data = self._create_drm_placeholder()
+                
+                # Save as current.jpg (actually PNG but browsers handle it)
+                file_path = os.path.join(www_path, "current.jpg")
+                with open(file_path, "wb") as f:
+                    f.write(placeholder_data)
+                
+                # Save DRM marker file
+                drm_marker = os.path.join(www_path, "current_drm.txt")
+                with open(drm_marker, "w") as f:
+                    f.write(f"DRM Protected: {content_id}\n")
+                
+                return file_path
+            
+            await self._hass.async_add_executor_job(_write_placeholder)
+            _LOGGER.debug("Saved DRM placeholder for %s", content_id)
+            
+        except Exception as ex:
+            _LOGGER.debug("Error saving DRM placeholder: %s", ex)
+
     async def _fetch_and_save_thumbnail(self, content_id: str) -> None:
         """Fetch and save thumbnail in background (non-blocking)."""
+        import os
+        
+        _LOGGER.info("Frame Art: Starting thumbnail fetch for %s", content_id)
+        
+        # Check if this is a Store image (SAM-S*) - these are DRM protected
+        is_store_image = content_id.startswith("SAM-S")
+        if is_store_image:
+            _LOGGER.debug("Frame Art: %s is a Store image (may be DRM protected)", content_id)
+        
         try:
             async with asyncio.timeout(20):  # Longer timeout for thumbnails
+                _LOGGER.debug("Frame Art: Calling get_thumbnail API for %s", content_id)
                 thumbnail_data = await self._art_api.get_thumbnail(content_id)
-                if thumbnail_data:
-                    import os
+                
+                _LOGGER.info(
+                    "Frame Art: get_thumbnail returned %d bytes for %s",
+                    len(thumbnail_data) if thumbnail_data else 0,
+                    content_id
+                )
+                
+                if thumbnail_data and len(thumbnail_data) > 1:
                     www_path = self._hass.config.path("www", "frame_art")
                     
                     def _write_thumbnails():
                         os.makedirs(www_path, exist_ok=True)
+                        
+                        # Remove DRM marker if it exists
+                        drm_marker = os.path.join(www_path, "current_drm.txt")
+                        if os.path.exists(drm_marker):
+                            os.remove(drm_marker)
                         
                         # Save as current.jpg
                         file_path = os.path.join(www_path, "current.jpg")
@@ -247,33 +435,50 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                         with open(content_path, "wb") as f:
                             f.write(thumbnail_data)
                         
+                        _LOGGER.info("Frame Art: Written thumbnail to %s", file_path)
                         return file_path, content_path
                     
                     # Run file I/O in executor to avoid blocking
                     await self._hass.async_add_executor_job(_write_thumbnails)
                     
-                    _LOGGER.debug("Saved thumbnail for %s", content_id)
+                    _LOGGER.info("Frame Art: Successfully saved thumbnail for %s", content_id)
                     self._thumbnail_failures = 0
                     
                     # Trigger state update
                     self.async_set_updated_data(self.data)
+                else:
+                    # No data or empty data - likely DRM protected
+                    _LOGGER.info(
+                        "Frame Art: No thumbnail data for %s (got %d bytes, DRM protected?)",
+                        content_id,
+                        len(thumbnail_data) if thumbnail_data else 0
+                    )
+                    await self._save_drm_placeholder(content_id)
+                    
         except asyncio.TimeoutError:
             self._thumbnail_failures += 1
-            _LOGGER.debug(
-                "Timeout fetching thumbnail for %s (failure %d)",
+            _LOGGER.warning(
+                "Frame Art: Timeout fetching thumbnail for %s (failure %d/3)",
                 content_id,
                 self._thumbnail_failures,
             )
-            # Disable thumbnail fetching after 3 consecutive failures
-            if self._thumbnail_failures >= 3:
-                _LOGGER.info(
-                    "Disabling automatic thumbnail fetch after %d failures. "
+            
+            # For store images, save DRM placeholder instead of disabling
+            if is_store_image:
+                await self._save_drm_placeholder(content_id)
+            elif self._thumbnail_failures >= 3:
+                _LOGGER.warning(
+                    "Frame Art: Disabling automatic thumbnail fetch after %d failures. "
                     "Use art_get_thumbnail service to fetch manually.",
                     self._thumbnail_failures,
                 )
                 self._thumbnail_fetch_enabled = False
+                
         except Exception as ex:
-            _LOGGER.debug("Error fetching thumbnail for %s: %s", content_id, ex)
+            _LOGGER.warning("Frame Art: Error fetching thumbnail for %s: %s", content_id, ex)
+            # For store images, assume DRM and save placeholder
+            if is_store_image:
+                await self._save_drm_placeholder(content_id)
 
 
 class FrameArtSensor(CoordinatorEntity, SensorEntity):
@@ -324,9 +529,23 @@ class FrameArtSensor(CoordinatorEntity, SensorEntity):
             # Current artwork details
             if data.get("current_artwork"):
                 current = data["current_artwork"]
-                attrs["current_content_id"] = current.get("content_id")
+                content_id = current.get("content_id")
+                attrs["current_content_id"] = content_id
                 attrs["current_category_id"] = current.get("category_id")
                 attrs["current_matte_id"] = current.get("matte_id")
+                
+                # Check if current image is DRM protected (SAM-S* = Art Store)
+                if content_id:
+                    is_drm = content_id.startswith("SAM-S")
+                    attrs["current_is_drm_protected"] = is_drm
+                    if is_drm:
+                        attrs["current_content_type"] = "Art Store (DRM)"
+                    elif content_id.startswith("MY_F"):
+                        attrs["current_content_type"] = "My Photos"
+                    elif content_id.startswith("SAM-"):
+                        attrs["current_content_type"] = "Samsung Collection"
+                    else:
+                        attrs["current_content_type"] = "Unknown"
             
             # Current thumbnail URL (for Lovelace)
             if data.get("current_thumbnail_url"):

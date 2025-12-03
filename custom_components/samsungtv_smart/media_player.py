@@ -62,7 +62,20 @@ from .api.samsungcast import SamsungCastTube
 from .api.samsungws import ArtModeStatus, SamsungTVAsyncRest, SamsungTVWS
 from .api.smartthings import SmartThingsTV, STStatus
 from .api.upnp import SamsungUPnP
+from .api.art import SamsungTVAsyncArt
 from .const import (
+    ATTR_BRIGHTNESS,
+    ATTR_CATEGORY_ID,
+    ATTR_CONTENT_ID,
+    ATTR_DURATION,
+    ATTR_ENABLED,
+    ATTR_FILE_PATH,
+    ATTR_FILE_TYPE,
+    ATTR_FILTER_ID,
+    ATTR_MATTE_ID,
+    ATTR_SHOW,
+    ATTR_SHUFFLE,
+    ATTR_STATUS,
     CONF_APP_LAUNCH_METHOD,
     CONF_APP_LIST,
     CONF_APP_LOAD_METHOD,
@@ -84,6 +97,7 @@ from .const import (
     CONF_USE_ST_STATUS_INFO,
     CONF_WOL_REPEAT,
     CONF_WS_NAME,
+    DATA_ART_API,
     DATA_CFG,
     DATA_OPTIONS,
     DEFAULT_APP,
@@ -93,6 +107,24 @@ from .const import (
     DOMAIN,
     LOCAL_LOGO_PATH,
     MAX_WOL_REPEAT,
+    SERVICE_ART_AVAILABLE,
+    SERVICE_ART_CHANGE_MATTE,
+    SERVICE_ART_DELETE,
+    SERVICE_ART_GET_ARTMODE,
+    SERVICE_ART_GET_BRIGHTNESS,
+    SERVICE_ART_GET_CURRENT,
+    SERVICE_ART_GET_MATTE_LIST,
+    SERVICE_ART_GET_PHOTO_FILTER_LIST,
+    SERVICE_ART_GET_THUMBNAIL,
+    SERVICE_ART_GET_THUMBNAILS_BATCH,
+    SERVICE_ART_SELECT_IMAGE,
+    SERVICE_ART_SET_ARTMODE,
+    SERVICE_ART_SET_AUTO_ROTATION,
+    SERVICE_ART_SET_BRIGHTNESS,
+    SERVICE_ART_SET_FAVOURITE,
+    SERVICE_ART_SET_PHOTO_FILTER,
+    SERVICE_ART_SET_SLIDESHOW,
+    SERVICE_ART_UPLOAD,
     SERVICE_SELECT_PICTURE_MODE,
     SERVICE_SET_ART_MODE,
     SIGNAL_CONFIG_ENTITY,
@@ -202,6 +234,127 @@ async def async_setup_entry(
         SERVICE_SET_ART_MODE,
         {},
         "async_set_art_mode",
+    )
+
+    # Frame Art Extended Services
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_ARTMODE,
+        {},
+        "async_art_get_artmode",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_ARTMODE,
+        {vol.Required(ATTR_ENABLED): cv.boolean},
+        "async_art_set_artmode",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_AVAILABLE,
+        {vol.Optional(ATTR_CATEGORY_ID): cv.string},
+        "async_art_available",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_CURRENT,
+        {},
+        "async_art_get_current",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SELECT_IMAGE,
+        {
+            vol.Required(ATTR_CONTENT_ID): cv.string,
+            vol.Optional(ATTR_CATEGORY_ID): cv.string,
+            vol.Optional(ATTR_SHOW, default=True): cv.boolean,
+        },
+        "async_art_select_image",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_UPLOAD,
+        {
+            vol.Required(ATTR_FILE_PATH): cv.string,
+            vol.Optional(ATTR_MATTE_ID, default="shadowbox_polar"): cv.string,
+            vol.Optional(ATTR_FILE_TYPE, default="jpg"): cv.string,
+        },
+        "async_art_upload",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_DELETE,
+        {vol.Required(ATTR_CONTENT_ID): cv.string},
+        "async_art_delete",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_THUMBNAIL,
+        {vol.Required(ATTR_CONTENT_ID): cv.string},
+        "async_art_get_thumbnail",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_THUMBNAILS_BATCH,
+        {
+            vol.Optional(ATTR_CATEGORY_ID): cv.string,
+            vol.Optional("favorites_only", default=False): cv.boolean,
+            vol.Optional("personal_only", default=False): cv.boolean,
+        },
+        "async_art_get_thumbnails_batch",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_BRIGHTNESS,
+        {vol.Required(ATTR_BRIGHTNESS): vol.All(vol.Coerce(int), vol.Range(0, 100))},
+        "async_art_set_brightness",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_BRIGHTNESS,
+        {},
+        "async_art_get_brightness",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_CHANGE_MATTE,
+        {
+            vol.Required(ATTR_CONTENT_ID): cv.string,
+            vol.Required(ATTR_MATTE_ID): cv.string,
+        },
+        "async_art_change_matte",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_PHOTO_FILTER,
+        {
+            vol.Required(ATTR_CONTENT_ID): cv.string,
+            vol.Required(ATTR_FILTER_ID): cv.string,
+        },
+        "async_art_set_photo_filter",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_PHOTO_FILTER_LIST,
+        {},
+        "async_art_get_photo_filter_list",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_GET_MATTE_LIST,
+        {},
+        "async_art_get_matte_list",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_FAVOURITE,
+        {
+            vol.Required(ATTR_CONTENT_ID): cv.string,
+            vol.Optional(ATTR_STATUS, default="on"): cv.string,
+        },
+        "async_art_set_favourite",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_SLIDESHOW,
+        {
+            vol.Required(ATTR_DURATION): vol.In(["3min", "15min", "1h", "12h", "1d", "7d"]),
+            vol.Optional(ATTR_SHUFFLE, default=True): cv.boolean,
+            vol.Optional(ATTR_CATEGORY_ID, default=2): vol.All(vol.Coerce(int), vol.Range(2, 8)),
+        },
+        "async_art_set_slideshow",
+    )
+    platform.async_register_entity_service(
+        SERVICE_ART_SET_AUTO_ROTATION,
+        {
+            vol.Required(ATTR_DURATION): vol.In(["3min", "15min", "1h", "12h", "1d", "7d"]),
+            vol.Optional(ATTR_SHUFFLE, default=True): cv.boolean,
+            vol.Optional(ATTR_CATEGORY_ID, default=2): vol.All(vol.Coerce(int), vol.Range(2, 8)),
+        },
+        "async_art_set_auto_rotation",
     )
 
 
@@ -323,6 +476,23 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             session=session,
             timeout=DEFAULT_TIMEOUT,
         )
+
+        # Frame Art API - use shared instance if available, otherwise create new one
+        shared_art_api = entry_data.get(DATA_ART_API) if entry_data else None
+        if shared_art_api:
+            self._art_api = shared_art_api
+            _LOGGER.debug("Using shared Frame Art API instance")
+        else:
+            self._art_api = SamsungTVAsyncArt(
+                host=self._host,
+                port=config.get(CONF_PORT, DEFAULT_PORT),
+                token=config.get(CONF_TOKEN),
+                session=session,
+                timeout=DEFAULT_TIMEOUT,
+                name=f"{WS_PREFIX} {ws_name} Art",
+            )
+        self._frame_tv_supported: bool | None = None
+        self._frame_art_last_result: dict | None = None
 
         # upnp initialization
         self._upnp = SamsungUPnP(host=self._host, session=session)
@@ -1069,6 +1239,10 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             if picture_mode_list:
                 data[ATTR_PICTURE_MODE_LIST] = picture_mode_list
 
+        # Add Frame Art last result if available
+        if hasattr(self, "_frame_art_last_result") and self._frame_art_last_result:
+            data["frame_art_last_result"] = self._frame_art_last_result
+
         return data
 
     @property
@@ -1698,6 +1872,651 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if not self._st:
             raise NotImplementedError()
         await self._st.async_set_picture_mode(picture_mode)
+
+    # ==========================================
+    # Frame Art Extended Service Methods
+    # ==========================================
+
+    def _store_art_result(self, result: dict) -> None:
+        """Store art service result and trigger state update.
+        
+        Important: Remove thumbnail_base64 from stored result to prevent
+        entity attributes from becoming too large.
+        """
+        # Create a copy without the base64 data
+        stored_result = result.copy()
+        if "thumbnail_base64" in stored_result:
+            # Replace with size info instead of full base64
+            base64_size = len(stored_result["thumbnail_base64"])
+            stored_result.pop("thumbnail_base64")
+            stored_result["thumbnail_base64_size"] = base64_size
+            stored_result["thumbnail_note"] = "Base64 data removed to save space"
+        
+        self._frame_art_last_result = stored_result
+        self.async_write_ha_state()
+
+    async def _ensure_frame_tv_check(self) -> bool:
+        """Check if Frame TV is supported (cached)."""
+        if self._frame_tv_supported is None:
+            try:
+                self._frame_tv_supported = await self._art_api.supported()
+            except Exception as ex:
+                _LOGGER.debug("Frame TV support check failed: %s", ex)
+                self._frame_tv_supported = False
+        return self._frame_tv_supported
+
+    async def async_art_get_artmode(self) -> dict:
+        """Get the current Art Mode status."""
+        if not await self._ensure_frame_tv_check():
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+        try:
+            status = await self._art_api.get_artmode()
+            result = {"service": "art_get_artmode", "status": status}
+            self._store_art_result(result)
+            return result
+        except Exception as ex:
+            result = {"service": "art_get_artmode", "error": str(ex)}
+            self._store_art_result(result)
+            return result
+
+    async def async_art_set_artmode(self, enabled: bool) -> dict:
+        """Enable or disable Art Mode."""
+        if not await self._ensure_frame_tv_check():
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+        try:
+            await self._art_api.set_artmode(enabled)
+            result = {"service": "art_set_artmode", "success": True, "enabled": enabled}
+            self._store_art_result(result)
+            return result
+        except Exception as ex:
+            result = {"service": "art_set_artmode", "error": str(ex)}
+            self._store_art_result(result)
+            return result
+
+    async def async_art_available(self, category_id: str | None = None) -> dict:
+        """Get list of available artwork on the TV."""
+        if not await self._ensure_frame_tv_check():
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+        try:
+            artwork_list = await self._art_api.available(category_id)
+            result = {
+                "service": "art_available",
+                "count": len(artwork_list),
+                "artwork": artwork_list
+            }
+            self._store_art_result(result)
+            return result
+        except Exception as ex:
+            result = {"service": "art_available", "error": str(ex)}
+            self._store_art_result(result)
+            return result
+
+    async def async_art_get_current(self) -> dict:
+        """Get information about the currently displayed artwork."""
+        if not await self._ensure_frame_tv_check():
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+        try:
+            current = await self._art_api.get_current()
+            result = {"service": "art_get_current", "current": current}
+            self._store_art_result(result)
+            return result
+        except Exception as ex:
+            result = {"service": "art_get_current", "error": str(ex)}
+            self._store_art_result(result)
+            return result
+
+    async def async_art_select_image(
+        self,
+        content_id: str,
+        category_id: str | None = None,
+        show: bool = True,
+    ) -> dict:
+        """Select and display a piece of artwork."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            await self._art_api.select_image(content_id, category_id, show)
+            return {"success": True, "content_id": content_id}
+        except Exception as ex:
+            _LOGGER.error("Error selecting artwork: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_upload(
+        self,
+        file_path: str,
+        matte_id: str = "shadowbox_polar",
+        file_type: str = "jpg",
+    ) -> dict:
+        """Upload an image to the TV as artwork."""
+        _LOGGER.info("Frame Art: Starting upload of %s", file_path)
+        
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            # Check if file exists
+            file_exists = await self.hass.async_add_executor_job(
+                lambda: __import__("os").path.exists(file_path)
+            )
+            if not file_exists:
+                _LOGGER.error("Frame Art: File not found: %s", file_path)
+                return {"error": f"File not found: {file_path}"}
+            
+            # Get file size for logging
+            file_size = await self.hass.async_add_executor_job(
+                lambda: __import__("os").path.getsize(file_path)
+            )
+            _LOGGER.info("Frame Art: Uploading file %s (%d bytes) with matte=%s", 
+                        file_path, file_size, matte_id)
+            
+            content_id = await self._art_api.upload(
+                file_path,
+                matte=matte_id,
+                file_type=file_type,
+                hass=self.hass,
+            )
+            if content_id:
+                _LOGGER.info("Frame Art: Upload successful, content_id=%s", content_id)
+                return {"success": True, "content_id": content_id}
+            
+            _LOGGER.error("Frame Art: Upload failed - no content_id returned")
+            return {"error": "Upload failed - no content_id returned"}
+        except Exception as ex:
+            _LOGGER.error("Error uploading artwork: %s", ex)
+            import traceback
+            _LOGGER.debug("Frame Art: Upload traceback: %s", traceback.format_exc())
+            return {"error": str(ex)}
+
+    async def async_art_delete(self, content_id: str) -> dict:
+        """Delete an uploaded piece of artwork."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        if not content_id.startswith("MY"):
+            return {"error": "Can only delete user-uploaded content (MY-*)"}
+        try:
+            await self._art_api.delete(content_id)
+            return {"success": True}
+        except Exception as ex:
+            _LOGGER.error("Error deleting artwork: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_get_thumbnail(self, content_id: str, save_to_file: bool = True, force_download: bool = False) -> dict:
+        """Get thumbnail for a specific piece of artwork.
+        
+        If save_to_file is True, saves the thumbnail to:
+        - /config/www/frame_art/personal/ for user-uploaded images (MY_F*)
+        - /config/www/frame_art/store/ for Samsung Art Store images (SAM-*)
+        - /config/www/frame_art/other/ for other content types
+        
+        If force_download is False, checks if file already exists before downloading.
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+        
+        try:
+            import os
+            
+            # Determine subdirectory and file path based on content type
+            if content_id.startswith("MY_F"):
+                subdir = "personal"
+            elif content_id.startswith("SAM-"):
+                subdir = "store"
+            else:
+                subdir = "other"
+            
+            # Create directory path
+            www_path = self.hass.config.path("www", "frame_art", subdir)
+            file_name = f"{content_id.replace(':', '_')}.jpg"
+            file_path = os.path.join(www_path, file_name)
+            
+            # Check if file already exists (unless force_download=True)
+            if save_to_file and not force_download:
+                def _check_file_exists():
+                    return os.path.isfile(file_path)
+                
+                file_exists = await self.hass.async_add_executor_job(_check_file_exists)
+                
+                if file_exists:
+                    _LOGGER.info("Thumbnail already exists for %s, skipping download", content_id)
+                    result = {
+                        "service": "art_get_thumbnail",
+                        "content_id": content_id,
+                        "thumbnail_url": f"/local/frame_art/{subdir}/{file_name}",
+                        "thumbnail_path": file_path,
+                        "subdirectory": subdir,
+                        "cached": True,
+                        "message": "File already exists"
+                    }
+                    self._store_art_result(result)
+                    return result
+            
+            # Download thumbnail with improved retry logic
+            max_retries = 3
+            retry_delays = [0.5, 1.0, 2.0]  # Progressive delays
+            thumbnail_data = None
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    _LOGGER.debug("Downloading thumbnail for %s (attempt %d/%d)", content_id, attempt + 1, max_retries)
+                    thumbnail_data = await self._art_api.get_thumbnail(content_id)
+                    
+                    if thumbnail_data and len(thumbnail_data) > 0:
+                        _LOGGER.debug("Successfully downloaded thumbnail for %s (%d bytes)", content_id, len(thumbnail_data))
+                        break
+                    else:
+                        last_error = "No thumbnail data received"
+                        _LOGGER.debug("No data for %s on attempt %d", content_id, attempt + 1)
+                except Exception as retry_ex:
+                    last_error = str(retry_ex)
+                    _LOGGER.debug("Error downloading %s on attempt %d: %s", content_id, attempt + 1, retry_ex)
+                
+                # Wait before retry (except on last attempt)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delays[attempt])
+            
+            if thumbnail_data and len(thumbnail_data) > 0:
+                import base64
+                encoded = base64.b64encode(thumbnail_data).decode("utf-8")
+                result = {
+                    "service": "art_get_thumbnail",
+                    "content_id": content_id,
+                    "thumbnail_base64": encoded,
+                    "size": len(thumbnail_data),
+                }
+                
+                # Save to file for Lovelace access
+                if save_to_file:
+                    try:
+                        def _write_thumbnail():
+                            os.makedirs(www_path, exist_ok=True)
+                            with open(file_path, "wb") as f:
+                                f.write(thumbnail_data)
+                            return file_name, file_path, subdir
+                        
+                        # Run file I/O in executor to avoid blocking
+                        file_name, file_path, subdir = await self.hass.async_add_executor_job(_write_thumbnail)
+                        
+                        # Add URL to result
+                        result["thumbnail_url"] = f"/local/frame_art/{subdir}/{file_name}"
+                        result["thumbnail_path"] = file_path
+                        result["subdirectory"] = subdir
+                        _LOGGER.debug("Saved thumbnail to %s", file_path)
+                    except Exception as file_ex:
+                        _LOGGER.warning("Could not save thumbnail to file: %s", file_ex)
+                
+                self._store_art_result(result)
+                return result
+            
+            # All retries failed
+            error_msg = f"Failed after {max_retries} attempts: {last_error}"
+            _LOGGER.warning("Could not download thumbnail for %s: %s", content_id, error_msg)
+            result = {"error": error_msg, "content_id": content_id}
+            self._store_art_result(result)
+            return result
+            
+        except Exception as ex:
+            _LOGGER.error("Error getting thumbnail for %s: %s", content_id, ex)
+            result = {"error": str(ex), "content_id": content_id}
+            self._store_art_result(result)
+            return result
+
+    async def async_art_get_thumbnails_batch(
+        self,
+        category_id: str | None = None,
+        favorites_only: bool = False,
+        personal_only: bool = False,
+        force_download: bool = False,
+    ) -> dict:
+        """Download thumbnails for multiple artworks.
+        
+        Downloads thumbnails for:
+        - All favorites (if favorites_only=True)
+        - All personal images (if personal_only=True)
+        - All artworks in a specific category (if category_id provided)
+        - All artworks (if no filters specified)
+        
+        Saves thumbnails to organized subdirectories:
+        - /config/www/frame_art/personal/ for user-uploaded images (MY_F*)
+        - /config/www/frame_art/store/ for Samsung Art Store images (SAM-*)
+        - /config/www/frame_art/other/ for other content types
+        
+        If force_download=False, skips files that already exist.
+        All content types are treated equally - no DRM protection assumptions.
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            result = {"error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
+            
+        try:
+            # Get artwork list based on filters
+            if favorites_only:
+                # Get favorites (category 4 = MY-C0004)
+                artwork_list = await self._art_api.available("MY-C0004")
+            elif personal_only:
+                # Get personal photos (category 2 = MY-C0002)
+                artwork_list = await self._art_api.available("MY-C0002")
+            elif category_id:
+                # Get specific category
+                artwork_list = await self._art_api.available(category_id)
+            else:
+                # Get all artworks
+                artwork_list = await self._art_api.available()
+            
+            if not artwork_list:
+                result = {
+                    "service": "art_get_thumbnails_batch",
+                    "success": False,
+                    "message": "No artworks found",
+                    "downloaded": 0,
+                    "skipped": 0,
+                    "failed": 0,
+                }
+                self._store_art_result(result)
+                return result
+            
+            # Download thumbnails with progress tracking
+            downloaded = []
+            skipped = []
+            failed = []
+            total = len(artwork_list)
+            
+            _LOGGER.info("Starting batch thumbnail download for %d artworks (force_download=%s)", total, force_download)
+            
+            for idx, artwork in enumerate(artwork_list, 1):
+                content_id = artwork.get("content_id")
+                if not content_id:
+                    continue
+                
+                try:
+                    _LOGGER.debug("Processing thumbnail %d/%d: %s", idx, total, content_id)
+                    
+                    # Download with file existence check (unless force_download)
+                    result = await self.async_art_get_thumbnail(
+                        content_id, 
+                        save_to_file=True, 
+                        force_download=force_download
+                    )
+                    
+                    if "error" in result:
+                        failed.append({
+                            "content_id": content_id,
+                            "error": result.get("error")
+                        })
+                    elif result.get("cached"):
+                        skipped.append({
+                            "content_id": content_id,
+                            "url": result.get("thumbnail_url"),
+                            "path": result.get("thumbnail_path"),
+                            "subdirectory": result.get("subdirectory"),
+                            "reason": "Already exists"
+                        })
+                    else:
+                        downloaded.append({
+                            "content_id": content_id,
+                            "url": result.get("thumbnail_url"),
+                            "path": result.get("thumbnail_path"),
+                            "subdirectory": result.get("subdirectory"),
+                            "size": result.get("size")
+                        })
+                    
+                    # Shorter delay between downloads
+                    await asyncio.sleep(0.05)
+                    
+                except Exception as ex:
+                    _LOGGER.warning("Failed to process thumbnail for %s: %s", content_id, ex)
+                    failed.append({"content_id": content_id, "error": str(ex)})
+            
+            # Build summary with metadata
+            result = {
+                "service": "art_get_thumbnails_batch",
+                "success": True,
+                "total_artworks": total,
+                "downloaded": len(downloaded),
+                "skipped": len(skipped),
+                "failed": len(failed),
+                "downloaded_list": downloaded,
+                "skipped_list": skipped,
+                "failed_list": failed,
+                "filters": {
+                    "category_id": category_id,
+                    "favorites_only": favorites_only,
+                    "personal_only": personal_only,
+                    "force_download": force_download,
+                },
+            }
+            
+            _LOGGER.info(
+                "Batch thumbnail download complete: %d downloaded, %d skipped (already exist), %d failed out of %d total",
+                len(downloaded),
+                len(skipped),
+                len(failed),
+                total,
+            )
+            
+            self._store_art_result(result)
+            return result
+            
+        except Exception as ex:
+            _LOGGER.error("Error in batch thumbnail download: %s", ex)
+            result = {
+                "service": "art_get_thumbnails_batch",
+                "error": str(ex),
+            }
+            self._store_art_result(result)
+            return result
+            self._store_art_result(result)
+            return result
+
+    async def async_art_set_brightness(self, brightness: int) -> dict:
+        """Set Art Mode brightness.
+        
+        Accepts brightness 0-100 from UI and converts to TV's 1-10 scale.
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            # Convert 0-100 scale to 1-10 scale for the TV API
+            # 0-10 -> 1, 11-20 -> 2, ..., 91-100 -> 10
+            tv_brightness = max(1, min(10, (brightness // 10) + (1 if brightness % 10 > 0 or brightness == 0 else 0)))
+            # Simpler: map 0->1, 10->1, 20->2, ..., 100->10
+            if brightness == 0:
+                tv_brightness = 0
+            else:
+                tv_brightness = max(1, min(10, round(brightness / 10)))
+            
+            _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
+            await self._art_api.set_brightness(tv_brightness)
+            return {"success": True, "brightness_ui": brightness, "brightness_tv": tv_brightness}
+        except Exception as ex:
+            _LOGGER.error("Error setting brightness: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_get_brightness(self) -> dict:
+        """Get Art Mode brightness.
+        
+        Returns brightness in both TV scale (1-10) and UI scale (0-100).
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            result = await self._art_api.get_brightness()
+            # Convert TV's 1-10 scale to 0-100 for UI
+            ui_brightness = result * 10 if result else None
+            return {"brightness_tv": result, "brightness_ui": ui_brightness}
+        except Exception as ex:
+            _LOGGER.error("Error getting brightness: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_change_matte(
+        self,
+        content_id: str,
+        matte_id: str,
+    ) -> dict:
+        """Change the matte/frame style for artwork."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            await self._art_api.change_matte(content_id, matte_id)
+            return {"success": True}
+        except Exception as ex:
+            _LOGGER.error("Error changing matte: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_set_photo_filter(
+        self,
+        content_id: str,
+        filter_id: str,
+    ) -> dict:
+        """Apply a photo filter to artwork."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            await self._art_api.set_photo_filter(content_id, filter_id)
+            return {"success": True}
+        except Exception as ex:
+            _LOGGER.error("Error setting photo filter: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_get_photo_filter_list(self) -> dict:
+        """Get list of available photo filters."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            filters = await self._art_api.get_photo_filter_list()
+            return {"filters": filters}
+        except Exception as ex:
+            _LOGGER.error("Error getting photo filter list: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_get_matte_list(self) -> dict:
+        """Get list of available matte styles."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            matte_types, matte_colors = await self._art_api.get_matte_list(include_color=True)
+            return {"matte_types": matte_types, "matte_colors": matte_colors}
+        except Exception as ex:
+            _LOGGER.error("Error getting matte list: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_set_favourite(
+        self,
+        content_id: str,
+        status: str = "on",
+    ) -> dict:
+        """Add or remove artwork from favourites."""
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        try:
+            await self._art_api.set_favourite(content_id, status)
+            return {"success": True}
+        except Exception as ex:
+            _LOGGER.error("Error setting favourite status: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_set_slideshow(
+        self,
+        duration: str,
+        shuffle: bool = True,
+        category_id: int = 2,
+    ) -> dict:
+        """Configure slideshow settings.
+        
+        Duration accepts: '3min', '15min', '1h', '12h', '1d', '7d'
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        
+        # Convert string duration to minutes
+        duration_map = {
+            "3min": 3,
+            "15min": 15,
+            "1h": 60,
+            "12h": 720,
+            "1d": 1440,
+            "7d": 10080,
+        }
+        
+        duration_minutes = duration_map.get(duration)
+        if duration_minutes is None:
+            # Try to parse as integer for backwards compatibility
+            try:
+                duration_minutes = int(duration)
+            except (ValueError, TypeError):
+                return {"error": f"Invalid duration: {duration}. Valid values: 3min, 15min, 1h, 12h, 1d, 7d"}
+        
+        try:
+            _LOGGER.debug("Frame Art: Setting slideshow duration=%s (%d min), shuffle=%s, category=%d",
+                         duration, duration_minutes, shuffle, category_id)
+            await self._art_api.set_slideshow_status(duration_minutes, shuffle, category_id)
+            return {"success": True, "duration": duration, "duration_minutes": duration_minutes}
+        except Exception as ex:
+            _LOGGER.error("Error setting slideshow: %s", ex)
+            return {"error": str(ex)}
+
+    async def async_art_set_auto_rotation(
+        self,
+        duration: str,
+        shuffle: bool = True,
+        category_id: int = 2,
+    ) -> dict:
+        """Configure auto rotation settings.
+        
+        Duration accepts: '3min', '15min', '1h', '12h', '1d', '7d'
+        """
+        if not await self._ensure_frame_tv_check():
+            _LOGGER.warning("Frame TV art mode is not supported on this device")
+            return {"error": "Frame TV not supported"}
+        
+        # Convert string duration to minutes
+        duration_map = {
+            "3min": 3,
+            "15min": 15,
+            "1h": 60,
+            "12h": 720,
+            "1d": 1440,
+            "7d": 10080,
+        }
+        
+        duration_minutes = duration_map.get(duration)
+        if duration_minutes is None:
+            try:
+                duration_minutes = int(duration)
+            except (ValueError, TypeError):
+                return {"error": f"Invalid duration: {duration}. Valid values: 3min, 15min, 1h, 12h, 1d, 7d"}
+        
+        try:
+            _LOGGER.debug("Frame Art: Setting auto rotation duration=%s (%d min), shuffle=%s, category=%d",
+                         duration, duration_minutes, shuffle, category_id)
+            await self._art_api.set_auto_rotation_status(duration_minutes, shuffle, category_id)
+            return {"success": True, "duration": duration, "duration_minutes": duration_minutes}
+        except Exception as ex:
+            _LOGGER.error("Error setting auto rotation: %s", ex)
+            return {"error": str(ex)}
 
     async def _async_switch_entity(self, power_on: bool):
         """Switch on/off related configure HA entity."""
