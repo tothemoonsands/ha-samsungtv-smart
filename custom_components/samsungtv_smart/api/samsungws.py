@@ -41,7 +41,6 @@ import uuid
 import aiohttp
 import requests
 import websocket
-from websocket._exceptions import WebSocketProtocolException
 
 from .shortcuts import SamsungTVShortcuts
 
@@ -414,15 +413,7 @@ class SamsungTVWS:
         payload = json.dumps(command)
         try:
             connection.send(payload)
-        except (websocket.WebSocketConnectionClosedException, WebSocketProtocolException) as exc:
-            # Gérer à la fois les fermetures normales et les codes 1005 invalides
-            if isinstance(exc, WebSocketProtocolException):
-                error_msg = str(exc)
-                if "1005" in error_msg:
-                    _LOGGING.warning(
-                        "_ws_send: Samsung TV sent invalid close code 1005, "
-                        "connection will be reset"
-                    )
+        except websocket.WebSocketConnectionClosedException:
             if raise_on_closed:
                 raise
             _LOGGING.warning("_ws_send: connection is closed, send command failed")
@@ -443,11 +434,6 @@ class SamsungTVWS:
                 time.sleep(self.key_press_delay)
         elif key_press_delay > 0:
             time.sleep(key_press_delay)
-
-        # Note: On ne ferme PAS systématiquement self.connection ici car cela peut
-        # causer des problèmes si plusieurs commandes sont envoyées en séquence rapide.
-        # La fermeture sera gérée par le garbage collector ou explicitement par le code appelant.
-        # Pour éviter la saturation, il faut plutôt espacer les commandes dans les automatisations.
 
         return True
 
@@ -512,9 +498,9 @@ class SamsungTVWS:
             on_ping=self._on_ping_remote,
         )
         _LOGGING.debug("Thread SamsungRemote started")
-        # Réduire le ping_interval de 3600s (1h) à 300s (5min) pour détecter plus rapidement
-        # les connexions mortes et éviter la saturation SmartThings.
-        self._run_forever(self._ws_remote, sslopt=sslopt, ping_interval=300)
+        # we set ping interval (1 hour) only to enable multi-threading mode
+        # on socket. TV do not answer to ping but send ping to client
+        self._run_forever(self._ws_remote, sslopt=sslopt, ping_interval=3600)
         self._is_connected = False
         if self._status_callback is not None:
             self._status_callback()
@@ -522,8 +508,7 @@ class SamsungTVWS:
             self._ws_art.close()
         if self._ws_control:
             self._ws_control.close()
-        if self._ws_remote:
-            self._ws_remote.close()
+        self._ws_remote.close()
         self._ws_remote = None
         _LOGGING.debug("Thread SamsungRemote terminated")
 
@@ -612,8 +597,7 @@ class SamsungTVWS:
         # on socket. TV do not answer to ping but send ping to client
         self._run_forever(self._ws_control, sslopt=sslopt, ping_interval=3600)
         self._is_control_connected = False
-        if self._ws_control:
-            self._ws_control.close()
+        self._ws_control.close()
         self._ws_control = None
         self._running_app_changed = None
         _LOGGING.debug("Thread SamsungControl terminated")
@@ -751,8 +735,7 @@ class SamsungTVWS:
         # we set ping interval (1 hour) only to enable multi-threading mode
         # on socket. TV do not answer to ping but send ping to client
         self._run_forever(self._ws_art, sslopt=sslopt, ping_interval=3600)
-        if self._ws_art:
-            self._ws_art.close()
+        self._ws_art.close()
         self._ws_art = None
         _LOGGING.debug("Thread SamsungArt terminated")
 
@@ -1026,21 +1009,9 @@ class SamsungTVWS:
                 self._client_art.start()
 
     def stop_client(self):
-        """Stop the ws remote client thread and cleanup all connections."""
+        """Stop the ws remote client thread."""
         if self._ws_remote:
-            try:
-                self._ws_remote.close()
-            except Exception as ex:
-                _LOGGING.debug("Error closing ws_remote: %s", ex)
-            self._ws_remote = None
-        
-        # Nettoyer aussi la connexion simple pour éviter la saturation
-        if self.connection:
-            try:
-                self.connection.close()
-            except Exception as ex:
-                _LOGGING.debug("Error closing simple connection: %s", ex)
-            self.connection = None
+            self._ws_remote.close()
 
     def open(self):
         """Open a WS client connection with the TV."""
@@ -1057,41 +1028,7 @@ class SamsungTVWS:
         response = ""
 
         for _ in range(3):
-            try:
-                response = _process_api_response(connection.recv())
-            except WebSocketProtocolException as exc:
-                # Samsung TV envoie parfois un code de fermeture 1005 invalide
-                # Le code 1005 est réservé et ne devrait pas être envoyé par le serveur
-                # selon la RFC 6455. Cela indique généralement une SATURATION des connexions
-                # côté SmartThings (trop de connexions WebSocket ouvertes simultanément).
-                error_msg = str(exc)
-                if "1005" in error_msg:
-                    _LOGGING.warning(
-                        "Samsung TV sent invalid close code 1005 - likely connection saturation. "
-                        "Forcing cleanup of all connections to allow TV to recover."
-                    )
-                    # Nettoyage complet de toutes les connexions
-                    try:
-                        connection.close()
-                    except Exception:
-                        pass
-                    
-                    # Forcer l'arrêt de la connexion persistante si elle existe
-                    if self._ws_remote:
-                        try:
-                            self._ws_remote.close()
-                        except Exception:
-                            pass
-                        self._ws_remote = None
-                    
-                    self.connection = None
-                    
-                    raise ConnectionFailure(
-                        "Connection closed by TV with code 1005 - TV may be saturated with connections. "
-                        "All connections have been cleaned up."
-                    )
-                raise
-            
+            response = _process_api_response(connection.recv())
             _LOGGING.debug(response)
             event = response.get("event", "-")
             if event != "ms.channel.connect":

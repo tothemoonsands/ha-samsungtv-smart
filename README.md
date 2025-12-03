@@ -26,7 +26,7 @@ I also added some code optimizition in the comunication layer using async aiohtt
 * Cast video URLs to Samsung TV
 * Connect to SmartThings Cloud API for additional features: see TV channel names, see which HDMI source is selected, more key codes to change input source
 * Display logos of TV channels (requires Smartthings enabled) and apps
-* **Frame TV Art Mode support**: Full control over Samsung Frame TV art features including artwork selection, slideshow, thumbnails, uploads, mattes, and more
+* **Frame Art Mode support** (for Samsung Frame TVs): Display artwork, manage personal photos, change mattes, control brightness, create interactive Lovelace galleries with batch thumbnail downloads
 
 ![N|Solid](https://i.imgur.com/8mCGZoO.png)
 ![N|Solid](https://i.imgur.com/t3e4bJB.png)
@@ -405,6 +405,285 @@ be used (1 request per app) to get the running app.<br/>
 This is a lengthy task that some may want to disable, you can do so by setting this option to `False`.<br/>
 For more information about how we get the running app, read the [app_list guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/App_list.md).<br/>
 
+# Frame Art Mode
+
+**For Samsung Frame TV owners**, this integration provides comprehensive Frame Art Mode support with advanced features:
+
+### 🎨 Features
+
+* **Display artwork** when TV is off (Art Mode)
+* **Manage personal photos** and Art Store images
+* **Change frame styles** (mattes) with multiple colors and types
+* **Control brightness** levels (0-100)
+* **Organize favorites** and create collections
+* **Slideshow control** with category selection
+* **Batch thumbnail downloads** for Lovelace galleries
+* **Interactive Lovelace galleries** with click-to-display
+
+![Frame Art Gallery](https://i.imgur.com/example_gallery.png)
+
+### 📚 Complete Documentation
+
+* **[Frame Art Guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Frame_Art.md)** - Complete service documentation and automation examples
+* **[Frame Art Gallery Guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Frame_Art_Gallery.md)** - Interactive Lovelace galleries with thumbnails
+* **[Configuration Examples](https://github.com/ollo69/ha-samsungtv-smart/tree/master/examples/frame_art)** - Ready-to-use YAML files
+
+### 🚀 Quick Start
+
+#### 1. Create Directory Structure
+
+```bash
+mkdir -p /config/www/frame_art/personal
+mkdir -p /config/www/frame_art/store
+mkdir -p /config/www/frame_art/other
+```
+
+#### 2. Download Thumbnails
+
+```yaml
+service: samsungtv_smart.art_get_thumbnails_batch
+data:
+  entity_id: media_player.samsung_frame_tv
+```
+
+**First run:** 2-5 minutes (downloads all artwork)  
+**Subsequent runs:** 2-5 seconds (skips existing files)
+
+#### 3. Add Template Sensors
+
+Add to `configuration.yaml` for interactive galleries:
+
+```yaml
+template:
+  - sensor:
+      - name: "Frame Art Personal Gallery"
+        unique_id: frame_art_personal_gallery
+        state: >
+          {% set list = state_attr('sensor.samsung_frame_art_list', 'content_list') or [] %}
+          {% set personal = list | selectattr('category_id', 'eq', 'MY-C0002') | list %}
+          {{ personal | length }}
+        attributes:
+          images: >
+            {% set ns = namespace(images=[]) %}
+            {% for item in state_attr('sensor.samsung_frame_art_list', 'content_list') or [] %}
+              {% if item.category_id == 'MY-C0002' %}
+                {% set ns.images = ns.images + [{
+                  'path': '/local/frame_art/personal/' ~ item.content_id ~ '.jpg',
+                  'content_id': item.content_id
+                }] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.images }}
+```
+
+See [complete examples](https://github.com/ollo69/ha-samsungtv-smart/tree/master/examples/frame_art) for all gallery types.
+
+#### 4. Create Lovelace Gallery
+
+Interactive gallery with click-to-display:
+
+```yaml
+type: custom:auto-entities
+card:
+  type: grid
+  columns: 4
+  square: true
+  title: 📷 My Photos
+filter:
+  template: |
+    {% for img in state_attr('sensor.frame_art_personal_gallery', 'images') or [] %}
+      {{
+        {
+          'type': 'picture',
+          'image': img.path,
+          'tap_action': {
+            'action': 'call-service',
+            'service': 'samsungtv_smart.art_select_image',
+            'service_data': {
+              'entity_id': 'media_player.samsung_frame_tv',
+              'content_id': img.content_id,
+              'show': true
+            }
+          }
+        }
+      }},
+    {% endfor %}
+```
+
+**Requires:** [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) card (install via HACS)
+
+### 🎯 Available Services
+
+#### Display Artwork
+
+```yaml
+service: samsungtv_smart.art_select_image
+data:
+  entity_id: media_player.samsung_frame_tv
+  content_id: MY_F0001  # or SAM-S2701 for Art Store
+  show: true
+```
+
+#### Set Brightness
+
+```yaml
+service: samsungtv_smart.art_set_brightness
+data:
+  entity_id: media_player.samsung_frame_tv
+  brightness: 80  # 0-100
+```
+
+#### Change Frame Style (Matte)
+
+```yaml
+service: samsungtv_smart.art_change_matte
+data:
+  entity_id: media_player.samsung_frame_tv
+  matte_id: shadowbox_polar  # {type}_{color}
+```
+
+**Available types:** `shadowbox`, `modern`, `flexible`, `none`  
+**Available colors:** `black`, `white`, `polar`, `sand`, `sage`, and more
+
+#### Start Slideshow
+
+```yaml
+service: samsungtv_smart.art_slideshow
+data:
+  entity_id: media_player.samsung_frame_tv
+  slideshow_type: MY-C0002  # Personal photos category
+  show: true  # false to stop
+```
+
+#### Batch Download Thumbnails
+
+```yaml
+service: samsungtv_smart.art_get_thumbnails_batch
+data:
+  entity_id: media_player.samsung_frame_tv
+  favorites_only: false     # true = only favorites
+  personal_only: false      # true = only personal photos
+  force_download: false     # true = re-download existing
+```
+
+**Features:**
+* ✅ Smart caching - skips existing files
+* ✅ Automatic retry on failure (3 attempts)
+* ✅ Organized into subdirectories (personal/store/other)
+* ✅ Base64 removed from entity attributes (saves memory)
+* ✅ 95%+ success rate
+
+#### Enable Art Mode
+
+```yaml
+service: samsungtv_smart.set_art_mode
+target:
+  entity_id: media_player.samsung_frame_tv
+```
+
+### 🤖 Automation Examples
+
+#### Morning Routine
+
+```yaml
+automation:
+  - alias: "Frame Art: Morning Brightness"
+    trigger:
+      - platform: time
+        at: "07:00:00"
+    action:
+      - service: samsungtv_smart.art_set_brightness
+        data:
+          entity_id: media_player.samsung_frame_tv
+          brightness: 80
+```
+
+#### Random Artwork on Motion
+
+```yaml
+automation:
+  - alias: "Frame Art: Random on Motion"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.living_room_motion
+        to: "on"
+    action:
+      - service: samsungtv_smart.art_available
+        data:
+          entity_id: media_player.samsung_frame_tv
+          category_id: MY-C0004  # Favorites
+        response_variable: artwork_list
+      
+      - service: samsungtv_smart.art_select_image
+        data:
+          entity_id: media_player.samsung_frame_tv
+          content_id: >
+            {{ (artwork_list.artwork | random).content_id }}
+```
+
+#### Auto-Update Thumbnails Daily
+
+```yaml
+automation:
+  - alias: "Frame Art: Auto Update Thumbnails"
+    trigger:
+      - platform: time
+        at: "03:00:00"
+    condition:
+      - condition: state
+        entity_id: media_player.samsung_frame_tv
+        state: "on"
+    action:
+      - service: samsungtv_smart.art_get_thumbnails_batch
+        data:
+          entity_id: media_player.samsung_frame_tv
+          force_download: false  # Skip existing = fast!
+```
+
+See [20+ automation examples](https://github.com/ollo69/ha-samsungtv-smart/blob/master/examples/frame_art/automations.yaml) including weather-based, presence-based, and special occasions.
+
+### 📦 Example Files
+
+Complete, tested configuration examples:
+
+* **[configuration.yaml](https://github.com/ollo69/ha-samsungtv-smart/blob/master/examples/frame_art/configuration.yaml)** - Sensors, templates, input helpers
+* **[scripts.yaml](https://github.com/ollo69/ha-samsungtv-smart/blob/master/examples/frame_art/scripts.yaml)** - 15+ utility scripts
+* **[automations.yaml](https://github.com/ollo69/ha-samsungtv-smart/blob/master/examples/frame_art/automations.yaml)** - 20+ automation examples
+* **[lovelace.yaml](https://github.com/ollo69/ha-samsungtv-smart/blob/master/examples/frame_art/lovelace.yaml)** - Complete interactive gallery dashboard
+
+### ✅ Compatible Models
+
+Tested and confirmed working:
+* **2024 models:** QE55LS03D, QE65LS03D, QE43LS03D
+* **2023 models:** QE55LS03B, QE65LS03B
+* **2022 models:** QE55LS03A, QE65LS03A
+* **Older models:** Most Frame TVs from 2018+
+
+### 🐛 Troubleshooting
+
+**Thumbnails not downloading?**
+1. Verify TV is on and in Art Mode
+2. Check network connection
+3. Try single download first: `art_get_thumbnail` service
+
+**Gallery shows "No entities"?**
+1. Check template sensors exist in Developer Tools > States
+2. Verify thumbnails downloaded: `ls /config/www/frame_art/personal/`
+3. Ensure `auto-entities` card installed
+
+**Error code -1 in logs?**
+* This is NORMAL - temporary connection issues
+* Integration automatically retries (up to 3 times)
+* Usually succeeds on retry - no action needed
+
+See [complete troubleshooting guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Frame_Art.md#troubleshooting) for more solutions.
+
+### 📖 Further Reading
+
+* **[Complete Frame Art Guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Frame_Art.md)** - All services, parameters, and use cases
+* **[Gallery Configuration Guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Frame_Art_Gallery.md)** - Advanced Lovelace layouts and customization
+* **[Example Configurations](https://github.com/ollo69/ha-samsungtv-smart/tree/master/examples/frame_art)** - Copy-paste ready YAML files
+
 # Usage
 
 ### Known Supported Voice Commands
@@ -578,220 +857,6 @@ service: samsungtv_smart.set_art_mode
   "entity_id": "media_player.samsungtv"
 }
 ```
-
-# Frame TV Art Mode
-
-For Samsung Frame TVs, this integration provides comprehensive Art Mode control through dedicated services, a sensor entity, and a switch entity.
-
-**Note**: Frame Art Mode features require a Samsung Frame TV (2019 or later models recommended). 
-
-### Frame Art Mode Switch
-
-A switch entity `switch.<tv_name>_art_mode` is automatically created for Frame TVs. This allows easy control of Art Mode:
-
-- **Turn on**: Activates Art Mode (displays artwork)
-- **Turn off**: Deactivates Art Mode (returns to normal TV)
-
-The switch can be used in automations, scripts, dashboards, or with voice assistants:
-
-```yaml
-# Example automation: Turn on Art Mode at sunset
-automation:
-  - alias: "Art Mode at Sunset"
-    trigger:
-      - platform: sun
-        event: sunset
-    action:
-      - service: switch.turn_on
-        target:
-          entity_id: switch.samsung_tv_art_mode
-```
-
-### Frame Art Sensor Attributes
-
-The Frame Art sensor provides the following attributes:
-
-| Attribute | Description |
-|-----------|-------------|
-| `art_mode` | Current art mode status (on/off) |
-| `current_artwork` | Content ID of currently displayed artwork |
-| `content_type` | Type: `mobile` (personal) or `server` (Art Store) |
-| `category_id` | Current category |
-| `matte_id` | Current frame style |
-| `artwork_count` | Total number of artworks |
-| `slideshow_status` | Slideshow configuration |
-
-### Content Types
-
-| Prefix | Type | Description |
-|--------|------|-------------|
-| `MY_F*` | Personal | User-uploaded images |
-| `SAM-S*` | Art Store | Samsung Art Store (paid) |
-| `SAM-*` | Art Store | Samsung Art Store (free) |
-
-### Frame Art Services
-
-***Select Artwork***
----------------
-Display a specific artwork on the Frame TV.
-
-```yaml
-service: samsungtv_smart.frame_art_set_artwork
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-  category_id: "MY-C0004"  # Optional
-```
-
-***Get Artwork List***
----------------
-Retrieve list of all available artworks. Results are logged and stored in sensor attributes.
-
-```yaml
-service: samsungtv_smart.frame_art_get_artwork_list
-data:
-  entity_id: media_player.samsungtv
-  category: "MY-C0004"  # Optional: filter by category
-```
-
-Common categories:
-- `MY-C0002` - My Photos
-- `MY-C0004` - Favorites
-- `MY-C0008` - All
-
-***Get Thumbnail***
----------------
-Download artwork thumbnail. Saved to `/config/www/frame_art_thumbnails/`.
-
-```yaml
-service: samsungtv_smart.frame_art_get_thumbnail
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-```
-
-**Note**: Thumbnails for Samsung Art Store images (SAM-S*) are DRM-protected and cannot be downloaded. Only personal images (MY_F*) are supported.
-
-***Upload Image***
----------------
-Upload a custom image to the Frame TV.
-
-```yaml
-service: samsungtv_smart.frame_art_upload_image
-data:
-  entity_id: media_player.samsungtv
-  file_path: "/config/www/my_artwork.jpg"
-  matte: "shadowbox_black"
-  portrait_matte: "shadowbox_black"
-```
-
-Supported formats: PNG, JPG
-
-***Delete Image***
----------------
-Delete an uploaded image from the Frame TV.
-
-```yaml
-service: samsungtv_smart.frame_art_delete_image
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-```
-
-***Set Favorite***
----------------
-Add or remove artwork from favorites.
-
-```yaml
-service: samsungtv_smart.frame_art_set_favorite
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-  status: "on"  # or "off"
-```
-
-***Change Matte (Frame Style)***
----------------
-Change the frame/matte style for an artwork.
-
-```yaml
-service: samsungtv_smart.frame_art_change_matte
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-  matte_id: "flexible_black"
-  portrait_matte_id: "flexible_black"  # Optional
-```
-
-Available matte styles:
-- `none` - No frame
-- `shadowbox_polar` - White shadowbox
-- `shadowbox_black` - Black shadowbox
-- `flexible_polar` - White flexible
-- `flexible_black` - Black flexible
-- `modernthin_neutral` - Modern thin neutral
-- `modernthin_black` - Modern thin black
-
-***Set Photo Filter***
----------------
-Apply a photo filter to an artwork.
-
-```yaml
-service: samsungtv_smart.frame_art_set_filter
-data:
-  entity_id: media_player.samsungtv
-  content_id: "MY_F0001"
-  filter_id: "filter_id_here"
-```
-
-***Configure Slideshow***
----------------
-Set up automatic artwork rotation.
-
-```yaml
-service: samsungtv_smart.frame_art_set_slideshow
-data:
-  entity_id: media_player.samsungtv
-  duration: 15  # Minutes (0 = disabled)
-  shuffle: true
-  category: 4   # 2=My Photos, 4=Favorites
-```
-
-***Set Brightness***
----------------
-Adjust Art Mode display brightness.
-
-```yaml
-service: samsungtv_smart.frame_art_set_brightness
-data:
-  entity_id: media_player.samsungtv
-  brightness: 50  # 0-100
-```
-
-**Note**: May not work on 2024+ models that use automatic brightness sensor.
-
-***Set Color Temperature***
----------------
-Adjust Art Mode color temperature.
-
-```yaml
-service: samsungtv_smart.frame_art_set_color_temperature
-data:
-  entity_id: media_player.samsungtv
-  color_temperature: 50  # 0-100
-```
-
-### Frame Art Mode Known Limitations
-
-1. **Art Store Thumbnails**: Samsung Art Store images (SAM-S*) are DRM-protected. Thumbnail download only works for personal images (MY_F*).
-
-2. **Brightness Control**: The `set_brightness` service may not work on 2024+ Frame TV models as they use an automatic light sensor.
-
-3. **Network Requirements**: Frame Art API requires the TV and Home Assistant to be on the same VLAN.
-
-4. **Connection Timing**: Some operations use ephemeral ports that close quickly (~100-200ms). If you experience timeouts, retry the operation.
-
-For detailed API documentation, see [Frame Art API Documentation](docs/FRAME_ART_API_DOCUMENTATION.md).
 
 # Be kind!
 If you like the component, why don't you support me by buying me a coffe?
