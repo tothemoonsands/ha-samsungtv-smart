@@ -68,7 +68,26 @@ class FolderGalleryCard extends HTMLElement {
   }
 
   set hass(hass) {
+    const oldHass = this._hass;
     this._hass = hass;
+    
+    // Anti-flicker: Only update if folder_sensor state actually changed
+    if (this._config.folder_sensor && oldHass) {
+      const oldState = oldHass.states[this._config.folder_sensor];
+      const newState = hass.states[this._config.folder_sensor];
+      
+      // Compare file_list attribute to detect real changes
+      const oldFiles = oldState?.attributes?.file_list;
+      const newFiles = newState?.attributes?.file_list;
+      
+      // Skip re-render if file_list is unchanged (prevents flickering)
+      if (JSON.stringify(oldFiles) === JSON.stringify(newFiles)) {
+        return; // No changes detected, skip expensive re-render
+      }
+      
+      console.log('[FolderGallery] file_list changed, updating gallery');
+    }
+    
     this.updateImages();
   }
 
