@@ -58,7 +58,7 @@ Complete control over your Samsung Frame TV's Art Mode:
 1. Open HACS in Home Assistant
 2. Go to **Integrations**
 3. Click the three dots menu → **Custom repositories**
-4. Add: `https://github.com/TheFab21/ha-samsungtv-smart`
+4. Add: `https://github.com/tothemoonsands/ha-samsungtv-smart`
 5. Category: **Integration**
 6. Click **Add**
 7. Search for "Samsung TV ArtMode" and install
@@ -78,33 +78,20 @@ OAuth2 provides automatic token refresh, eliminating the need for manual PAT ren
 
 ### Step 1: Create SmartThings OAuth Application
 
-1. Go to [SmartThings Developer Workspace](https://smartthings.developer.samsung.com/workspace)
-2. Sign in with your Samsung account
-3. Click **New Project** → **Device Integration** → **SmartThings Cloud Connector**
-4. Name your project (e.g., "Home Assistant Integration")
-5. Go to **Develop** → **Registration** → **App Registration**
-6. Click **Create New**
+1. Install the SmartThings CLI
+2. Login. Run smartthings login
+3. Create the OAuth app. Run smartthings apps:create
+4. When prompted, choose:
+	•	“OAuth-In App”  ￼
 
-### Step 2: Configure OAuth Settings
+Then enter:
+	•	Redirect URI: https://my.home-assistant.io/redirect/oauth  ￼
+	•	Scopes: at minimum r:devices:* and x:devices:*  ￼
 
-In the App Registration form:
+At the end, the CLI will output Client ID and Client Secret. Copy them somewhere secure—SmartThings warns you may only see them once.  ￼
 
-| Field | Value |
-|-------|-------|
-| **App Name** | Home Assistant Samsung TV |
-| **App Type** | Automation App |
-| **OAuth Scope** | `r:devices:*` and `x:devices:*` |
-| **Redirect URI** | `https://my.home-assistant.io/redirect/oauth` |
-
-7. Click **Save** and note your:
-   - **Client ID** (OAuth Client Id)
-   - **Client Secret** (OAuth Client Secret)
-
-> ⚠️ **Important**: Use the "OAuth Client Id", NOT the "App Id"!
-
-### Step 3: Configure Home Assistant
-
-Add your credentials to Home Assistant:
+If you missed the secret: the CLI supports regenerating OAuth credentials via apps:oauth:generate.  ￼
+5.  Add your credentials to Home Assistant:
 
 **Option A: Via UI**
 1. Go to **Settings** → **Devices & Services** → **Application Credentials**
@@ -121,7 +108,8 @@ application_credentials:
     client_secret: "YOUR_CLIENT_SECRET"
 ```
 
-### Step 4: Add Integration with OAuth
+6.  Add Integratoin with OAuth
+
 
 1. Go to **Settings** → **Devices & Services**
 2. Click **Add Integration** → **Samsung TV ArtMode**
