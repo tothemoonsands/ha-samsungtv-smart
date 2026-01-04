@@ -1,4 +1,4 @@
-# Samsung TV Smart - Frame Art Edition
+# Samsung TV ArtMode - Frame Art Edition
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/TheFab21/ha-samsungtv-smart.svg)](https://github.com/TheFab21/ha-samsungtv-smart/releases)
@@ -61,13 +61,13 @@ Complete control over your Samsung Frame TV's Art Mode:
 4. Add: `https://github.com/TheFab21/ha-samsungtv-smart`
 5. Category: **Integration**
 6. Click **Add**
-7. Search for "Samsung TV Smart" and install
+7. Search for "Samsung TV ArtMode" and install
 8. Restart Home Assistant
 
 ### Manual Installation
 
 1. Download the latest release from GitHub
-2. Copy the `samsungtv_smart` folder to `/config/custom_components/`
+2. Copy the `samsungtv_artmode` folder to `/config/custom_components/`
 3. Restart Home Assistant
 
 ---
@@ -109,14 +109,14 @@ Add your credentials to Home Assistant:
 **Option A: Via UI**
 1. Go to **Settings** → **Devices & Services** → **Application Credentials**
 2. Click **Add Credentials**
-3. Select **Samsung TV Smart**
+3. Select **Samsung TV ArtMode**
 4. Enter your Client ID and Client Secret
 
 **Option B: Via configuration.yaml**
 ```yaml
 # configuration.yaml
 application_credentials:
-  - platform: samsungtv_smart
+  - platform: samsungtv_artmode
     client_id: "YOUR_CLIENT_ID"
     client_secret: "YOUR_CLIENT_SECRET"
 ```
@@ -124,7 +124,7 @@ application_credentials:
 ### Step 4: Add Integration with OAuth
 
 1. Go to **Settings** → **Devices & Services**
-2. Click **Add Integration** → **Samsung TV Smart**
+2. Click **Add Integration** → **Samsung TV ArtMode**
 3. Select **SmartThings OAuth** as authentication method
 4. Complete the OAuth flow in your browser
 5. Your TV should now appear with OAuth authentication
@@ -149,12 +149,12 @@ application_credentials:
 
 ```yaml
 # Get Art Mode status
-service: samsungtv_smart.art_get_artmode
+service: samsungtv_artmode.art_get_artmode
 target:
   entity_id: media_player.samsung_frame
 
 # Turn Art Mode on/off
-service: samsungtv_smart.art_set_artmode
+service: samsungtv_artmode.art_set_artmode
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -165,14 +165,14 @@ data:
 
 ```yaml
 # Select specific artwork
-service: samsungtv_smart.art_select_image
+service: samsungtv_artmode.art_select_image
 target:
   entity_id: media_player.samsung_frame
 data:
   content_id: "SAM-S1234567"
   
 # Get available artworks
-service: samsungtv_smart.art_available
+service: samsungtv_artmode.art_available
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -183,7 +183,7 @@ data:
 
 ```yaml
 # Change matte style and color
-service: samsungtv_smart.art_change_matte
+service: samsungtv_artmode.art_change_matte
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -201,7 +201,7 @@ data:
 
 ```yaml
 # Configure slideshow
-service: samsungtv_smart.art_set_slideshow
+service: samsungtv_artmode.art_set_slideshow
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -210,7 +210,7 @@ data:
   category_id: 4  # 2=Personal, 4=Favorites
 
 # Configure auto-rotation (similar to slideshow)
-service: samsungtv_smart.art_set_auto_rotation
+service: samsungtv_artmode.art_set_auto_rotation
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -223,14 +223,14 @@ data:
 
 ```yaml
 # Set Art Mode brightness (0-100)
-service: samsungtv_smart.art_set_brightness
+service: samsungtv_artmode.art_set_brightness
 target:
   entity_id: media_player.samsung_frame
 data:
   brightness: 50
 
 # Get current brightness
-service: samsungtv_smart.art_get_brightness
+service: samsungtv_artmode.art_get_brightness
 target:
   entity_id: media_player.samsung_frame
 ```
@@ -239,7 +239,7 @@ target:
 
 ```yaml
 # Download single thumbnail
-service: samsungtv_smart.art_get_thumbnail
+service: samsungtv_artmode.art_get_thumbnail
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -247,7 +247,7 @@ data:
   save_to_file: true
 
 # Batch download with orphan cleanup
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -260,7 +260,7 @@ data:
 
 ```yaml
 # Add/remove from favorites
-service: samsungtv_smart.art_set_favourite
+service: samsungtv_artmode.art_set_favourite
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -308,7 +308,7 @@ conditions:
       - sat
       - sun
 actions:
-  - action: samsungtv_smart.art_set_slideshow
+  - action: samsungtv_artmode.art_set_slideshow
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -326,7 +326,7 @@ triggers:
   - trigger: time_pattern
     hours: "/6"  # Every 6 hours
 actions:
-  - action: samsungtv_smart.art_get_thumbnails_batch
+  - action: samsungtv_artmode.art_get_thumbnails_batch
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -395,7 +395,7 @@ actions:
   - action: switch.turn_on
     target:
       entity_id: switch.samsung_frame_frame_art_mode
-  - action: samsungtv_smart.art_set_brightness
+  - action: samsungtv_artmode.art_set_brightness
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -444,7 +444,7 @@ image_height: 160px
 aspect_ratio: "1"
 tap_action: lightbox
 hold_action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -494,8 +494,8 @@ If Art Mode commands fail silently:
    ```yaml
    logger:
      logs:
-       custom_components.samsungtv_smart: debug
-       custom_components.samsungtv_smart.api.art: debug
+       custom_components.samsungtv_artmode: debug
+       custom_components.samsungtv_artmode.api.art: debug
    ```
 
 2. Check for WebSocket disconnection in logs
@@ -523,11 +523,11 @@ After removing favorites:
 logger:
   default: warning
   logs:
-    custom_components.samsungtv_smart: debug
-    custom_components.samsungtv_smart.api.art: debug
-    custom_components.samsungtv_smart.api.smartthings: debug
-    custom_components.samsungtv_smart.switch: debug
-    custom_components.samsungtv_smart.sensor: debug
+    custom_components.samsungtv_artmode: debug
+    custom_components.samsungtv_artmode.api.art: debug
+    custom_components.samsungtv_artmode.api.smartthings: debug
+    custom_components.samsungtv_artmode.switch: debug
+    custom_components.samsungtv_artmode.sensor: debug
 ```
 
 ---

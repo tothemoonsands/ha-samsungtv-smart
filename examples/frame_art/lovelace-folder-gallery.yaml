@@ -74,7 +74,7 @@ cards:
             icon: mdi:palette
             tap_action:
               action: call-service
-              service: samsungtv_smart.set_art_mode
+              service: samsungtv_artmode.set_art_mode
               target:
                 entity_id: media_player.samsung_frame_tv
           
@@ -90,7 +90,7 @@ cards:
             icon: mdi:refresh
             tap_action:
               action: call-service
-              service: samsungtv_smart.art_available
+              service: samsungtv_artmode.art_available
               target:
                 entity_id: media_player.samsung_frame_tv
           
@@ -99,7 +99,7 @@ cards:
             icon: mdi:brightness-7
             tap_action:
               action: call-service
-              service: samsungtv_smart.art_set_brightness
+              service: samsungtv_artmode.art_set_brightness
               target:
                 entity_id: media_player.samsung_frame_tv
               data:
@@ -110,7 +110,7 @@ cards:
             icon: mdi:brightness-4
             tap_action:
               action: call-service
-              service: samsungtv_smart.art_set_brightness
+              service: samsungtv_artmode.art_set_brightness
               target:
                 entity_id: media_player.samsung_frame_tv
               data:
@@ -130,7 +130,7 @@ cards:
     show_filename: true
     tap_action: lightbox  # Click to open lightbox
     hold_action:  # Long press to display on TV
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame_tv
       data:
@@ -151,7 +151,7 @@ cards:
     show_filename: false
     tap_action: action  # Click to display directly
     action:
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame_tv
       data:
@@ -172,7 +172,7 @@ cards:
     show_filename: true
     tap_action: action
     action:
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame_tv
       data:
@@ -233,7 +233,7 @@ cards:
 #           icon: mdi:brightness-7
 #           tap_action:
 #             action: call-service
-#             service: samsungtv_smart.art_set_brightness
+#             service: samsungtv_artmode.art_set_brightness
 #             target:
 #               entity_id: media_player.samsung_frame_tv
 #             data:
@@ -244,7 +244,7 @@ cards:
 #           icon: mdi:brightness-4
 #           tap_action:
 #             action: call-service
-#             service: samsungtv_smart.art_set_brightness
+#             service: samsungtv_artmode.art_set_brightness
 #             target:
 #               entity_id: media_player.samsung_frame_tv
 #             data:
@@ -259,7 +259,7 @@ cards:
 #       gap: 8px
 #       tap_action: action
 #       action:
-#         service: samsungtv_smart.art_select_image
+#         service: samsungtv_artmode.art_select_image
 #         target:
 #           entity_id: media_player.samsung_frame_tv
 #         data:
@@ -280,7 +280,7 @@ cards:
 #   show_filename: true
 #   tap_action: lightbox
 #   hold_action:
-#     service: samsungtv_smart.art_select_image
+#     service: samsungtv_artmode.art_select_image
 #     target:
 #       entity_id: media_player.samsung_frame_tv
 #     data:
@@ -301,7 +301,7 @@ cards:
 #   show_filename: false
 #   tap_action: action
 #   action:
-#     service: samsungtv_smart.art_select_image
+#     service: samsungtv_artmode.art_select_image
 #     target:
 #       entity_id: media_player.samsung_frame_tv
 #     data:

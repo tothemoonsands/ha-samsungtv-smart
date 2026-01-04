@@ -1,1 +1,1 @@
-"""custom integation tests."""
+"""custom integration tests for samsungtv_artmode."""

@@ -1,4 +1,4 @@
-# HomeAssistant - SamsungTV Smart Component
+# HomeAssistant - SamsungTV ArtMode Component
 
 ***app_list guide***
 ---------------

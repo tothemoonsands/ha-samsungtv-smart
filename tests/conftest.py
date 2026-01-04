@@ -1,4 +1,4 @@
-"""Global fixtures for integration_blueprint integration."""
+"""Global fixtures for samsungtv_artmode integration."""
 
 # Fixtures allow you to replace functions with a Mock object. You can perform
 # many options via the Mock to reflect a particular behavior from the original

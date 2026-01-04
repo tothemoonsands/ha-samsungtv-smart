@@ -19,7 +19,7 @@ frame_art_download_all:
   alias: "Frame Art: Download All Thumbnails"
   description: "Download thumbnails for all artwork (personal, favorites, store)"
   sequence:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
     - service: persistent_notification.create
@@ -32,7 +32,7 @@ frame_art_download_personal:
   alias: "Frame Art: Download Personal Photos"
   description: "Download thumbnails for user-uploaded photos only"
   sequence:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
         personal_only: true
@@ -46,7 +46,7 @@ frame_art_download_favorites:
   alias: "Frame Art: Download Favorites"
   description: "Download thumbnails for favorited artwork only"
   sequence:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
         favorites_only: true
@@ -60,7 +60,7 @@ frame_art_force_redownload:
   alias: "Frame Art: Force Re-download All"
   description: "Re-download all thumbnails even if they exist"
   sequence:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
         force_download: true
@@ -79,13 +79,13 @@ frame_art_morning_routine:
   description: "Set bright artwork and high brightness for morning"
   sequence:
     # Set high brightness
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 80
     
     # Select morning image (replace MY_F0001 with your preferred content_id)
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0001"
@@ -109,13 +109,13 @@ frame_art_evening_routine:
   description: "Set calming artwork and low brightness for evening"
   sequence:
     # Set low brightness
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 30
     
     # Select evening image (replace MY_F0002 with your preferred content_id)
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0002"
@@ -138,7 +138,7 @@ frame_art_night_mode:
   alias: "Frame Art: Night Mode"
   description: "Set minimal brightness for nighttime"
   sequence:
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 10
@@ -158,14 +158,14 @@ frame_art_random_image:
   description: "Display a random image from personal photos"
   sequence:
     # Get available artwork list
-    - service: samsungtv_smart.art_available
+    - service: samsungtv_artmode.art_available
       data:
         entity_id: media_player.samsung_frame_tv
         category_id: "MY-C0002"  # Personal photos
       response_variable: artwork_list
     
     # Select random image
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: >
@@ -177,13 +177,13 @@ frame_art_random_favorite:
   alias: "Frame Art: Random Favorite"
   description: "Display a random image from favorites"
   sequence:
-    - service: samsungtv_smart.art_available
+    - service: samsungtv_artmode.art_available
       data:
         entity_id: media_player.samsung_frame_tv
         category_id: "MY-C0004"  # Favorites
       response_variable: artwork_list
     
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: >
@@ -195,12 +195,12 @@ frame_art_random_store:
   alias: "Frame Art: Random Art Store Image"
   description: "Display a random image from Samsung Art Store"
   sequence:
-    - service: samsungtv_smart.art_available
+    - service: samsungtv_artmode.art_available
       data:
         entity_id: media_player.samsung_frame_tv
       response_variable: artwork_list
     
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: >
@@ -217,14 +217,14 @@ frame_art_apply_matte:
   alias: "Frame Art: Apply Matte Style"
   description: "Apply selected matte style from input_select"
   sequence:
-    - service: samsungtv_smart.art_change_matte
+    - service: samsungtv_artmode.art_change_matte
       data:
         entity_id: media_player.samsung_frame_tv
         matte_id: "{{ states('input_select.frame_matte') }}"
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
     
     # Refresh display
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
@@ -236,7 +236,7 @@ frame_art_set_matte:
   description: "Apply matte using separate type and color selectors"
   mode: single
   sequence:
-    - service: samsungtv_smart.art_change_matte
+    - service: samsungtv_artmode.art_change_matte
       data:
         entity_id: media_player.samsung_frame_tv
         matte_id: >
@@ -250,7 +250,7 @@ frame_art_set_matte:
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
     
     # Refresh display
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
@@ -261,13 +261,13 @@ frame_art_remove_matte:
   alias: "Frame Art: Remove Matte"
   description: "Remove frame/matte from current artwork"
   sequence:
-    - service: samsungtv_smart.art_change_matte
+    - service: samsungtv_artmode.art_change_matte
       data:
         entity_id: media_player.samsung_frame_tv
         matte_id: none
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
     
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "{{ state_attr('sensor.samsung_frame_art', 'current_content_id') }}"
@@ -282,7 +282,7 @@ frame_art_slideshow_personal:
   alias: "Frame Art: Start Personal Slideshow"
   description: "Start slideshow with personal photos"
   sequence:
-    - service: samsungtv_smart.art_slideshow
+    - service: samsungtv_artmode.art_slideshow
       data:
         entity_id: media_player.samsung_frame_tv
         slideshow_type: MY-C0002  # Personal photos
@@ -293,7 +293,7 @@ frame_art_slideshow_favorites:
   alias: "Frame Art: Start Favorites Slideshow"
   description: "Start slideshow with favorite artwork"
   sequence:
-    - service: samsungtv_smart.art_slideshow
+    - service: samsungtv_artmode.art_slideshow
       data:
         entity_id: media_player.samsung_frame_tv
         slideshow_type: MY-C0004  # Favorites
@@ -304,7 +304,7 @@ frame_art_slideshow_stop:
   alias: "Frame Art: Stop Slideshow"
   description: "Stop the current slideshow"
   sequence:
-    - service: samsungtv_smart.art_slideshow
+    - service: samsungtv_artmode.art_slideshow
       data:
         entity_id: media_player.samsung_frame_tv
         show: false
@@ -318,7 +318,7 @@ frame_art_refresh_list:
   alias: "Frame Art: Refresh Artwork List"
   description: "Refresh the list of available artwork"
   sequence:
-    - service: samsungtv_smart.art_available
+    - service: samsungtv_artmode.art_available
       data:
         entity_id: media_player.samsung_frame_tv
 
@@ -327,7 +327,7 @@ frame_art_get_current:
   alias: "Frame Art: Get Current Artwork"
   description: "Get information about currently displayed artwork"
   sequence:
-    - service: samsungtv_smart.art_current
+    - service: samsungtv_artmode.art_current
       data:
         entity_id: media_player.samsung_frame_tv
 
@@ -336,6 +336,6 @@ launch_art_mode:
   alias: "Frame Art: Launch Art Mode"
   description: "Activate Art Mode on Frame TV"
   sequence:
-    - service: samsungtv_smart.set_art_mode
+    - service: samsungtv_artmode.set_art_mode
       target:
         entity_id: media_player.samsung_frame_tv

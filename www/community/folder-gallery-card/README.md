@@ -69,7 +69,7 @@ sensor: sensor.frame_art_personal_gallery
 columns: 4
 image_height: 180px
 action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame_tv
   data:
@@ -127,7 +127,7 @@ gap: 10px
 border_radius: 12px
 tap_action: lightbox
 action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame_tv
   data:
@@ -144,7 +144,7 @@ columns: 5
 image_height: 200px
 show_filename: false
 action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame_tv
   data:
@@ -161,7 +161,7 @@ columns: 4
 image_height: 160px
 tap_action: lightbox  # Click = open lightbox
 hold_action:  # Long press = direct action
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame_tv
   data:

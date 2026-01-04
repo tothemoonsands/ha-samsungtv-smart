@@ -39,7 +39,7 @@ Frame Art Mode allows you to:
 
 ### Software
 - Home Assistant 2024.1+
-- SamsungTV Smart integration installed
+- SamsungTV ArtMode integration installed
 
 ### Network
 - TV and Home Assistant on same network
@@ -91,17 +91,17 @@ Art Mode brightness level.
 
 ### Art Mode Control
 
-#### `samsungtv_smart.art_get_artmode`
+#### `samsungtv_artmode.art_get_artmode`
 
 Get current Art Mode status.
 
 ```yaml
-service: samsungtv_smart.art_get_artmode
+service: samsungtv_artmode.art_get_artmode
 target:
   entity_id: media_player.samsung_frame
 ```
 
-#### `samsungtv_smart.art_set_artmode`
+#### `samsungtv_artmode.art_set_artmode`
 
 Enable or disable Art Mode.
 
@@ -111,7 +111,7 @@ Enable or disable Art Mode.
 | `enabled` | boolean | Yes | `true` to enable, `false` to disable |
 
 ```yaml
-service: samsungtv_smart.art_set_artmode
+service: samsungtv_artmode.art_set_artmode
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -122,7 +122,7 @@ data:
 
 ### Artwork Selection
 
-#### `samsungtv_smart.art_select_image`
+#### `samsungtv_artmode.art_select_image`
 
 Display a specific artwork on Frame TV.
 
@@ -134,7 +134,7 @@ Display a specific artwork on Frame TV.
 | `show` | boolean | No | `true` | Show immediately |
 
 ```yaml
-service: samsungtv_smart.art_select_image
+service: samsungtv_artmode.art_select_image
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -146,7 +146,7 @@ data:
 - Personal photos: `MY_F0001`, `MY_F0002`, etc.
 - Art Store: `SAM-S2701`, `SAM-S0700`, etc.
 
-#### `samsungtv_smart.art_available`
+#### `samsungtv_artmode.art_available`
 
 Get list of available artwork.
 
@@ -160,19 +160,19 @@ Get list of available artwork.
 - `MY-C0004` - Favorites
 
 ```yaml
-service: samsungtv_smart.art_available
+service: samsungtv_artmode.art_available
 target:
   entity_id: media_player.samsung_frame
 data:
   category_id: MY-C0004
 ```
 
-#### `samsungtv_smart.art_get_current`
+#### `samsungtv_artmode.art_get_current`
 
 Get information about currently displayed artwork.
 
 ```yaml
-service: samsungtv_smart.art_get_current
+service: samsungtv_artmode.art_get_current
 target:
   entity_id: media_player.samsung_frame
 ```
@@ -181,7 +181,7 @@ target:
 
 ### Brightness Control
 
-#### `samsungtv_smart.art_set_brightness`
+#### `samsungtv_artmode.art_set_brightness`
 
 Adjust Frame TV brightness.
 
@@ -191,7 +191,7 @@ Adjust Frame TV brightness.
 | `brightness` | integer | Yes | 0-100 | Brightness level |
 
 ```yaml
-service: samsungtv_smart.art_set_brightness
+service: samsungtv_artmode.art_set_brightness
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -205,12 +205,12 @@ data:
 - 30: Low (evening)
 - 0: Minimum (night)
 
-#### `samsungtv_smart.art_get_brightness`
+#### `samsungtv_artmode.art_get_brightness`
 
 Get current brightness level.
 
 ```yaml
-service: samsungtv_smart.art_get_brightness
+service: samsungtv_artmode.art_get_brightness
 target:
   entity_id: media_player.samsung_frame
 ```
@@ -219,7 +219,7 @@ target:
 
 ### Matte (Frame) Control
 
-#### `samsungtv_smart.art_change_matte`
+#### `samsungtv_artmode.art_change_matte`
 
 Change the frame style around artwork.
 
@@ -230,7 +230,7 @@ Change the frame style around artwork.
 | `matte_id` | string | Yes | Matte style ID (format: `{type}_{color}`) |
 
 ```yaml
-service: samsungtv_smart.art_change_matte
+service: samsungtv_artmode.art_change_matte
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -259,12 +259,12 @@ data:
 
 **Format:** `{type}_{color}` (e.g., `shadowbox_polar`, `modern_black`)
 
-#### `samsungtv_smart.art_get_matte_list`
+#### `samsungtv_artmode.art_get_matte_list`
 
 Get list of available matte styles for the TV.
 
 ```yaml
-service: samsungtv_smart.art_get_matte_list
+service: samsungtv_artmode.art_get_matte_list
 target:
   entity_id: media_player.samsung_frame
 ```
@@ -273,7 +273,7 @@ target:
 
 ### Photo Filters
 
-#### `samsungtv_smart.art_set_photo_filter`
+#### `samsungtv_artmode.art_set_photo_filter`
 
 Apply a photo filter to artwork.
 
@@ -284,7 +284,7 @@ Apply a photo filter to artwork.
 | `filter_id` | string | Yes | Filter ID |
 
 ```yaml
-service: samsungtv_smart.art_set_photo_filter
+service: samsungtv_artmode.art_set_photo_filter
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -292,12 +292,12 @@ data:
   filter_id: mono
 ```
 
-#### `samsungtv_smart.art_get_photo_filter_list`
+#### `samsungtv_artmode.art_get_photo_filter_list`
 
 Get list of available photo filters.
 
 ```yaml
-service: samsungtv_smart.art_get_photo_filter_list
+service: samsungtv_artmode.art_get_photo_filter_list
 target:
   entity_id: media_player.samsung_frame
 ```
@@ -306,7 +306,7 @@ target:
 
 ### Slideshow & Auto-Rotation
 
-#### `samsungtv_smart.art_set_slideshow`
+#### `samsungtv_artmode.art_set_slideshow`
 
 Configure artwork slideshow.
 
@@ -320,7 +320,7 @@ Configure artwork slideshow.
 **Duration Options:** `3min`, `15min`, `1h`, `12h`, `1d`, `7d`
 
 ```yaml
-service: samsungtv_smart.art_set_slideshow
+service: samsungtv_artmode.art_set_slideshow
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -329,14 +329,14 @@ data:
   category_id: 4
 ```
 
-#### `samsungtv_smart.art_set_auto_rotation`
+#### `samsungtv_artmode.art_set_auto_rotation`
 
 Configure auto-rotation (similar to slideshow).
 
 **Parameters:** Same as `art_set_slideshow`
 
 ```yaml
-service: samsungtv_smart.art_set_auto_rotation
+service: samsungtv_artmode.art_set_auto_rotation
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -349,7 +349,7 @@ data:
 
 ### Favorites Management
 
-#### `samsungtv_smart.art_set_favourite`
+#### `samsungtv_artmode.art_set_favourite`
 
 Add or remove artwork from favorites.
 
@@ -361,7 +361,7 @@ Add or remove artwork from favorites.
 
 ```yaml
 # Add to favorites
-service: samsungtv_smart.art_set_favourite
+service: samsungtv_artmode.art_set_favourite
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -369,7 +369,7 @@ data:
   status: "on"
 
 # Remove from favorites
-service: samsungtv_smart.art_set_favourite
+service: samsungtv_artmode.art_set_favourite
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -381,7 +381,7 @@ data:
 
 ### Upload & Delete
 
-#### `samsungtv_smart.art_upload`
+#### `samsungtv_artmode.art_upload`
 
 Upload an image to the TV as artwork.
 
@@ -393,7 +393,7 @@ Upload an image to the TV as artwork.
 | `file_type` | string | No | `jpg` | File type (`jpg`, `png`) |
 
 ```yaml
-service: samsungtv_smart.art_upload
+service: samsungtv_artmode.art_upload
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -401,7 +401,7 @@ data:
   matte_id: modern_black
 ```
 
-#### `samsungtv_smart.art_delete`
+#### `samsungtv_artmode.art_delete`
 
 Delete user-uploaded artwork (only `MY-*` content).
 
@@ -411,7 +411,7 @@ Delete user-uploaded artwork (only `MY-*` content).
 | `content_id` | string | Yes | Artwork ID (must start with `MY`) |
 
 ```yaml
-service: samsungtv_smart.art_delete
+service: samsungtv_artmode.art_delete
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -424,7 +424,7 @@ data:
 
 ### Single Thumbnail
 
-#### `samsungtv_smart.art_get_thumbnail`
+#### `samsungtv_artmode.art_get_thumbnail`
 
 Download thumbnail for a specific artwork.
 
@@ -434,7 +434,7 @@ Download thumbnail for a specific artwork.
 | `content_id` | string | Yes | Artwork ID |
 
 ```yaml
-service: samsungtv_smart.art_get_thumbnail
+service: samsungtv_artmode.art_get_thumbnail
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -443,7 +443,7 @@ data:
 
 ### Batch Download
 
-#### `samsungtv_smart.art_get_thumbnails_batch`
+#### `samsungtv_artmode.art_get_thumbnails_batch`
 
 Download thumbnails for multiple artworks.
 
@@ -458,7 +458,7 @@ Download thumbnails for multiple artworks.
 
 ```yaml
 # Download favorites with cleanup
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -466,14 +466,14 @@ data:
   cleanup_orphans: true
 
 # Download personal photos only
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
   personal_only: true
 
 # Force re-download all
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -601,7 +601,7 @@ triggers:
   - trigger: time_pattern
     hours: "/6"
 actions:
-  - action: samsungtv_smart.art_get_thumbnails_batch
+  - action: samsungtv_artmode.art_get_thumbnails_batch
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -628,7 +628,7 @@ conditions:
       - sat
       - sun
 actions:
-  - action: samsungtv_smart.art_set_slideshow
+  - action: samsungtv_artmode.art_set_slideshow
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -686,7 +686,7 @@ triggers:
     entity_id: sun.sun
     attribute: elevation
 actions:
-  - action: samsungtv_smart.art_set_brightness
+  - action: samsungtv_artmode.art_set_brightness
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -716,7 +716,7 @@ actions:
   - action: switch.turn_on
     target:
       entity_id: switch.samsung_frame_frame_art_mode
-  - action: samsungtv_smart.art_set_brightness
+  - action: samsungtv_artmode.art_set_brightness
     target:
       entity_id: media_player.samsung_frame
     data:
@@ -737,8 +737,8 @@ mode: single
    ```yaml
    logger:
      logs:
-       custom_components.samsungtv_smart: debug
-       custom_components.samsungtv_smart.api.art: debug
+       custom_components.samsungtv_artmode: debug
+       custom_components.samsungtv_artmode.api.art: debug
    ```
 
 2. Check for WebSocket reconnection messages in logs
@@ -755,7 +755,7 @@ mode: single
 3. Some Art Store content may be DRM-protected
 4. Try single thumbnail first:
    ```yaml
-   service: samsungtv_smart.art_get_thumbnail
+   service: samsungtv_artmode.art_get_thumbnail
    target:
      entity_id: media_player.samsung_frame
    data:
@@ -768,7 +768,7 @@ mode: single
 
 **Solution:** Use `cleanup_orphans` and refresh folder sensor:
 ```yaml
-- action: samsungtv_smart.art_get_thumbnails_batch
+- action: samsungtv_artmode.art_get_thumbnails_batch
   target:
     entity_id: media_player.samsung_frame
   data:
