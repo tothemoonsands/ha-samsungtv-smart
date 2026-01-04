@@ -119,7 +119,7 @@ cards:
               'image': img.path,
               'tap_action': {
                 'action': 'call-service',
-                'service': 'samsungtv_smart.art_select_image',
+                'service': 'samsungtv_artmode.art_select_image',
                 'service_data': {
                   'entity_id': 'media_player.samsung_frame_tv',
                   'content_id': img.content_id,
@@ -154,7 +154,7 @@ cards:
               'image': img.path,
               'tap_action': {
                 'action': 'call-service',
-                'service': 'samsungtv_smart.art_select_image',
+                'service': 'samsungtv_artmode.art_select_image',
                 'service_data': {
                   'entity_id': 'media_player.samsung_frame_tv',
                   'content_id': img.content_id,
@@ -186,7 +186,7 @@ cards:
               'image': img.path,
               'tap_action': {
                 'action': 'call-service',
-                'service': 'samsungtv_smart.art_select_image',
+                'service': 'samsungtv_artmode.art_select_image',
                 'service_data': {
                   'entity_id': 'media_player.samsung_frame_tv',
                   'content_id': img.content_id,
@@ -260,7 +260,7 @@ cards:
 #             'image': img.path,
 #             'tap_action': {
 #               'action': 'call-service',
-#               'service': 'samsungtv_smart.art_select_image',
+#               'service': 'samsungtv_artmode.art_select_image',
 #               'service_data': {
 #                 'entity_id': 'media_player.samsung_frame_tv',
 #                 'content_id': img.content_id,
@@ -289,7 +289,7 @@ cards:
 #             'image': img.path,
 #             'tap_action': {
 #               'action': 'call-service',
-#               'service': 'samsungtv_smart.art_select_image',
+#               'service': 'samsungtv_artmode.art_select_image',
 #               'service_data': {
 #                 'entity_id': 'media_player.samsung_frame_tv',
 #                 'content_id': img.content_id,
@@ -317,7 +317,7 @@ cards:
 #             'icon': 'mdi:image',
 #             'tap_action': {
 #               'action': 'call-service',
-#               'service': 'samsungtv_smart.art_select_image',
+#               'service': 'samsungtv_artmode.art_select_image',
 #               'service_data': {
 #                 'entity_id': 'media_player.samsung_frame_tv',
 #                 'content_id': img.content_id,
@@ -399,7 +399,7 @@ cards:
 #                 'image': img.path,
 #                 'tap_action': {
 #                   'action': 'call-service',
-#                   'service': 'samsungtv_smart.art_select_image',
+#                   'service': 'samsungtv_artmode.art_select_image',
 #                   'service_data': {
 #                     'entity_id': 'media_player.samsung_frame_tv',
 #                     'content_id': img.content_id,

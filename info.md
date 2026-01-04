@@ -1,5 +1,5 @@
 
-# HomeAssistant - SamsungTV Smart Component
+# HomeAssistant - SamsungTV ArtMode Component
 
 This is a custom component to allow control of SamsungTV devices in [HomeAssistant](https://home-assistant.io). 
 Is a modified version of the built-in [samsungtv](https://www.home-assistant.io/integrations/samsungtv/) with some extra
@@ -38,7 +38,7 @@ starting configuration.
 ### Configuration using the web UI
 
 1. From the Home Assistant front-end, navigate to 'Configuration' then 'Integrations'. Click `+` button in botton right corner,
-search '**SamsungTV Smart**' and click 'Configure'.
+search '**SamsungTV ArtMode**' and click 'Configure'.
 2. In the configuration mask, enter the IP address of the TV, the name for the Entity and the SmartThings personal 
 access token (if created) and then click 'Submit'
 3. **Important**: look for your TV screen and confirm **immediatly** with OK if a popup appear.

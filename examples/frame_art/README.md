@@ -166,7 +166,7 @@ trigger:
 
 ### Mandatory
 
-1. **SamsungTV Smart integration** installed
+1. **SamsungTV ArtMode integration** installed
 2. **auto-entities** card installed (for galleries)
 3. **Frame TV** connected and configured
 
@@ -226,7 +226,7 @@ After creating Lovelace dashboard:
 **Fix:**
 ```yaml
 # Download thumbnails first
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 data:
   entity_id: media_player.samsung_frame_tv
 

@@ -36,7 +36,7 @@ Frame Art Gallery transforms your Home Assistant dashboard into an interactive a
 
 ### Required Components
 
-1. **SamsungTV Smart integration** with Frame Art support
+1. **SamsungTV ArtMode integration** with Frame Art support
 
 2. **Downloaded thumbnails** (see [Quick Start](#quick-start))
 
@@ -82,7 +82,7 @@ mkdir -p /config/www/frame_art/other
 ### Step 2: Download Thumbnails
 
 ```yaml
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -140,7 +140,7 @@ image_height: 160px
 aspect_ratio: "1"
 tap_action: lightbox
 hold_action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -197,13 +197,13 @@ gap: 10px
 border_radius: 12px
 tap_action: lightbox
 hold_action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
     content_id: "{{content_id}}"
 action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -233,7 +233,7 @@ columns: 3
 aspect_ratio: "4/3"
 tap_action: lightbox
 hold_action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -251,7 +251,7 @@ columns: 5
 aspect_ratio: "1"
 tap_action: action
 action:
-  service: samsungtv_smart.art_select_image
+  service: samsungtv_artmode.art_select_image
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -286,7 +286,7 @@ filter:
           'image': img.path,
           'tap_action': {
             'action': 'call-service',
-            'service': 'samsungtv_smart.art_select_image',
+            'service': 'samsungtv_artmode.art_select_image',
             'target': {
               'entity_id': 'media_player.samsung_frame'
             },
@@ -320,7 +320,7 @@ filter:
           'image': img.path,
           'tap_action': {
             'action': 'call-service',
-            'service': 'samsungtv_smart.art_select_image',
+            'service': 'samsungtv_artmode.art_select_image',
             'target': {
               'entity_id': 'media_player.samsung_frame'
             },
@@ -484,7 +484,7 @@ cards:
     aspect_ratio: "1"
     tap_action: lightbox
     hold_action:
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame
       data:
@@ -498,7 +498,7 @@ cards:
     aspect_ratio: "1"
     tap_action: lightbox
     hold_action:
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame
       data:
@@ -518,7 +518,7 @@ cards:
         icon: mdi:sync
         tap_action:
           action: call-service
-          service: samsungtv_smart.art_get_thumbnails_batch
+          service: samsungtv_artmode.art_get_thumbnails_batch
           target:
             entity_id: media_player.samsung_frame
           data:
@@ -543,7 +543,7 @@ cards:
     aspect_ratio: "1"
     tap_action: lightbox
     action:
-      service: samsungtv_smart.art_select_image
+      service: samsungtv_artmode.art_select_image
       target:
         entity_id: media_player.samsung_frame
       data:
@@ -565,7 +565,7 @@ cards:
 
 ```yaml
 # 1. Download thumbnails
-service: samsungtv_smart.art_get_thumbnails_batch
+service: samsungtv_artmode.art_get_thumbnails_batch
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -615,7 +615,7 @@ target:
   entity_id: switch.samsung_frame_frame_art_mode
 
 # Test with Developer Tools > Services
-service: samsungtv_smart.art_select_image
+service: samsungtv_artmode.art_select_image
 target:
   entity_id: media_player.samsung_frame
 data:
@@ -630,7 +630,7 @@ data:
 
 ```yaml
 # Automation or script
-- action: samsungtv_smart.art_get_thumbnails_batch
+- action: samsungtv_artmode.art_get_thumbnails_batch
   target:
     entity_id: media_player.samsung_frame
   data:
@@ -679,7 +679,7 @@ triggers:
   - trigger: time_pattern
     hours: "/6"
 actions:
-  - action: samsungtv_smart.art_get_thumbnails_batch
+  - action: samsungtv_artmode.art_get_thumbnails_batch
     target:
       entity_id: media_player.samsung_frame
     data:

@@ -72,7 +72,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
         force_download: false  # Skip existing files - fast!
@@ -92,7 +92,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_get_thumbnails_batch
+    - service: samsungtv_artmode.art_get_thumbnails_batch
       data:
         entity_id: media_player.samsung_frame_tv
         force_download: true  # Re-download everything
@@ -113,7 +113,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: "{{ states('input_number.frame_brightness') | int }}"
@@ -213,7 +213,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 5
@@ -239,7 +239,7 @@
       before: "20:00:00"
   action:
     # Select a bright, sunny image (replace with your preferred content_id)
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0010"  # Your sunny day image
@@ -259,7 +259,7 @@
       state: "on"
   action:
     # Select a cozy, rainy day image
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0011"  # Your rainy day image
@@ -282,12 +282,12 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0020"  # Your birthday image
         show: true
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 100
@@ -306,7 +306,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_select_image
+    - service: samsungtv_artmode.art_select_image
       data:
         entity_id: media_player.samsung_frame_tv
         content_id: "MY_F0030"  # Your Christmas image
@@ -377,7 +377,7 @@
       entity_id: media_player.samsung_frame_tv
       state: "on"
   action:
-    - service: samsungtv_smart.art_set_brightness
+    - service: samsungtv_artmode.art_set_brightness
       data:
         entity_id: media_player.samsung_frame_tv
         brightness: 20
