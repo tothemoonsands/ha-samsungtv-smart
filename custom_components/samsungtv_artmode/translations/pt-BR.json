@@ -14,7 +14,7 @@
       "st_device_not_found": "ID de TV SmartThings não encontrado.",
       "st_device_used": "ID de TV SmartThings já está em uso."
     },
-    "flow_title": "SamsungTV ArtMode: {model}",
+    "flow_title": "Samsung Smart TV Enhanced: {model}",
     "step": {
       "confirm": {
         "description": "Deseja configurar a TV Samsung {model}? Se você nunca conectou o Home Assistant antes, verá um pop-up na TV solicitando uma autorização. As configurações manuais para esta TV serão substituídas."
@@ -45,7 +45,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Opções SamsungTV ArtMode",
+        "title": "Opções Samsung Smart TV Enhanced",
         "data": {
           "use_st_status_info": "Use as informações de status da TV SmartThings",
           "use_st_channel_info": "Use as informações dos canais de TV SmartThings",
@@ -58,7 +58,7 @@
         }
       },
       "adv_opt": {
-        "title": "Opções avançadas SamsungTV ArtMode",
+        "title": "Opções avançadas Samsung Smart TV Enhanced",
         "data": {
           "app_launch_method": "Método usado na inicialização de aplicativos",
           "dump_apps": "Despejar a lista de aplicativos no arquivo de log na inicialização (quando possível)",
@@ -70,7 +70,7 @@
         }
       },
       "sync_ent": {
-        "title": "SamsungTV ArtMode synched entities",
+        "title": "Samsung Smart TV Enhanced synched entities",
         "data": {
           "sync_turn_off": "Lista de entidades para desligar com a TV",
           "sync_turn_on": "Lista de entidades para ligar com a TV"

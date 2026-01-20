@@ -1,4 +1,4 @@
-# Samsung TV ArtMode - v6.3.0 (OAuth2 Support)
+# Samsung Smart TV Enhanced - v6.3.0 (OAuth2 Support)
 
 ## 🎯 Nouveauté : Authentification OAuth2 SmartThings
 
@@ -26,11 +26,11 @@ Cette version ajoute le support OAuth2 pour l'authentification SmartThings, perm
    - Aller dans **Paramètres → Appareils & Services**
    - Cliquer sur les ⋮ (3 points) → **Identifiants d'application**
    - Cliquer sur **+ Ajouter des identifiants**
-   - Sélectionner **SamsungTV ArtMode**
+   - Sélectionner **Samsung Smart TV Enhanced**
    - Entrer le Client ID et Client Secret
 
 3. **Ajouter l'intégration :**
-   - Ajouter l'intégration Samsung TV ArtMode
+   - Ajouter l'intégration Samsung Smart TV Enhanced
    - Choisir **"Sign in with Samsung (OAuth2)"**
    - Suivre le flux de connexion Samsung
    - Configurer l'IP de votre TV
@@ -41,7 +41,7 @@ Cette version ajoute le support OAuth2 pour l'authentification SmartThings, perm
 Pour ceux qui préfèrent la méthode manuelle :
 
 1. Créer un token sur https://account.smartthings.com/tokens
-2. Ajouter l'intégration Samsung TV ArtMode
+2. Ajouter l'intégration Samsung Smart TV Enhanced
 3. Choisir **"Personal Access Token"**
 4. Coller votre token
 5. Configurer l'IP de votre TV
@@ -50,7 +50,7 @@ Pour ceux qui préfèrent la méthode manuelle :
 
 Si vous avez déjà l'intégration SmartThings native configurée :
 
-1. Ajouter l'intégration Samsung TV ArtMode
+1. Ajouter l'intégration Samsung Smart TV Enhanced
 2. Choisir **"Personal Access Token"**
 3. Sélectionner votre intégration SmartThings dans le dropdown
 4. Configurer l'IP de votre TV
@@ -60,7 +60,7 @@ Si vous avez déjà l'intégration SmartThings native configurée :
 Si vous utilisez actuellement un PAT et souhaitez passer à OAuth :
 
 1. Configurer les Application Credentials (voir ci-dessus)
-2. Aller dans **Paramètres → Appareils & Services → Samsung TV ArtMode**
+2. Aller dans **Paramètres → Appareils & Services → Samsung Smart TV Enhanced**
 3. Cliquer sur les ⋮ → **Reconfigurer**
 4. Cocher **"Switch to OAuth2 authentication"**
 5. Suivre le flux OAuth
@@ -113,4 +113,3 @@ L'intégration demande les scopes suivants :
 
 **Version:** 6.3.0  
 **Date:** 2024-12-10
-

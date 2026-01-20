@@ -96,7 +96,7 @@ class SamsungTVRemote(SamsungTVEntity, RemoteEntity):
                 validate_config=True,
             )
         except HomeAssistantError as ex:
-            _LOGGER.error("SamsungTV ArtMode Remote - error %s", ex)
+            _LOGGER.error("Samsung Smart TV Enhanced Remote - error %s", ex)
 
         return
 

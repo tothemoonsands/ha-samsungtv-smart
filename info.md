@@ -1,5 +1,5 @@
 
-# HomeAssistant - SamsungTV ArtMode Component
+# HomeAssistant - Samsung Smart TV Enhanced Component
 
 This is a custom component to allow control of SamsungTV devices in [HomeAssistant](https://home-assistant.io). 
 Is a modified version of the built-in [samsungtv](https://www.home-assistant.io/integrations/samsungtv/) with some extra
@@ -31,14 +31,14 @@ connected to the LAN (wired or wireless)**. Stay near to your TV during configur
 to accept the access request that will prompt on your TV screen.
 
 **Note**: To configure the component for using **SmartThings (strongly suggested)** you need to generate an access 
-token as explained in [this guide](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Smartthings.md). 
+token as explained in [this guide](https://github.com/tothemoonsands/ha-samsungtv-smart/blob/master/docs/Smartthings.md). 
 Also make sure your **TV is logged into your SmartThings account** and **registered in SmartThings phone app** before 
 starting configuration.
 
 ### Configuration using the web UI
 
 1. From the Home Assistant front-end, navigate to 'Configuration' then 'Integrations'. Click `+` button in botton right corner,
-search '**SamsungTV ArtMode**' and click 'Configure'.
+search '**Samsung Smart TV Enhanced**' and click 'Configure'.
 2. In the configuration mask, enter the IP address of the TV, the name for the Entity and the SmartThings personal 
 access token (if created) and then click 'Submit'
 3. **Important**: look for your TV screen and confirm **immediatly** with OK if a popup appear.
@@ -49,7 +49,7 @@ not work because not supported by Samsung TV.
 If you have errors during configuration, try to power cycle your TV. This will close running applications that can prevent 
 websocket connection initialization.
 
-**Please refer to [readme](https://github.com/ollo69/ha-samsungtv-smart/blob/master/README.md) for details on optional parameter and additional configuration instruction.**
+**Please refer to [readme](https://github.com/tothemoonsands/ha-samsungtv-smart/blob/master/README.md) for details on optional parameter and additional configuration instruction.**
 
 # Be kind!
 If you like the component, why don't you support me by buying me a coffe?

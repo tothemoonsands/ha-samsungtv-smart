@@ -300,7 +300,7 @@ def _migrate_options_format(hass: HomeAssistant, entry: ConfigEntry) -> None:
                     " you can now remove from configuration.yaml"
                 )
                 _notify_message(
-                    hass, f"config-import-{key}", "SamsungTV ArtMode", message
+                    hass, f"config-import-{key}", "Samsung Smart TV Enhanced", message
                 )
                 _LOGGER.warning(message)
             new_options[key] = option
@@ -542,7 +542,7 @@ async def async_get_samsungtv_api_key(hass: HomeAssistant, entry: ConfigEntry) -
                                 _LOGGER.error(
                                     "Could not get OAuth implementation - Application Credentials missing. "
                                     "Go to Settings > Devices & Services > Application Credentials "
-                                    "and add credentials for Samsung TV ArtMode."
+                                    "and add credentials for Samsung Smart TV Enhanced."
                                 )
                         except Exception as ex:
                             _LOGGER.error("Failed to refresh OAuth token: %s", ex)
@@ -797,7 +797,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             f" {__min_ha_version__}, you are running version {__version__}."
             " Please upgrade HomeAssistant to continue use this integration."
         )
-        _notify_message(hass, "inv_ha_version", "SamsungTV ArtMode", msg)
+        _notify_message(hass, "inv_ha_version", "Samsung Smart TV Enhanced", msg)
         _LOGGER.warning(msg)
         return True
 

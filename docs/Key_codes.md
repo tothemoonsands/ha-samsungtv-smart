@@ -1,8 +1,8 @@
-# HomeAssistant - SamsungTV ArtMode Component
+# HomeAssistant - Samsung Smart TV Enhanced Component
 
 ***Key Codes***
 ---------------
-If [SmartThings API](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Smartthings.md) was enabled by setting `api_key`, then these codes are also supported: `ST_TV`, `ST_HDMI1`, `ST_HDMI2`, `ST_HDMI3`, etc. (see the [entire list of SmartThings keys](https://github.com/ollo69/ha-samsungtv-smart/blob/master/docs/Smartthings.md#smartthings-keys))
+If [SmartThings API](https://github.com/tothemoonsands/ha-samsungtv-smart/blob/master/docs/Smartthings.md) was enabled by setting `api_key`, then these codes are also supported: `ST_TV`, `ST_HDMI1`, `ST_HDMI2`, `ST_HDMI3`, etc. (see the [entire list of SmartThings keys](https://github.com/tothemoonsands/ha-samsungtv-smart/blob/master/docs/Smartthings.md#smartthings-keys))
 
 The list of accepted keys may vary depending on the TV model, but the following list has some common key codes and their descriptions.
 

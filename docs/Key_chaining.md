@@ -1,4 +1,4 @@
-# HomeAssistant - SamsungTV ArtMode Component
+# HomeAssistant - Samsung Smart TV Enhanced Component
 
 ***Key Chaining Patterns***
 ---------------
@@ -53,4 +53,3 @@ This is a list of known and tested key chaining patterns. To see the complete li
 **Switch to forth Source in List (2017 TV)**
 
 `KEY_SOURCE+KEY_LEFT+KEY_LEFT+KEY_LEFT+KEY_RIGHT+KEY_RIGHT+KEY_RIGHT+KEY_ENTER`
-

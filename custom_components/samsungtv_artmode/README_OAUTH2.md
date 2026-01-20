@@ -1,8 +1,8 @@
-# Samsung TV ArtMode - OAuth2 Integration
+# Samsung Smart TV Enhanced - OAuth2 Integration
 
 ## Overview
 
-Cette mise à jour ajoute le support **OAuth2 autonome** pour l'intégration Samsung TV ArtMode.  
+Cette mise à jour ajoute le support **OAuth2 autonome** pour l'intégration Samsung Smart TV Enhanced.  
 L'intégration peut maintenant fonctionner de 3 façons :
 
 | Méthode | Description |
@@ -54,14 +54,14 @@ Copie ces fichiers dans `custom_components/samsungtv_artmode/` :
 1. **Paramètres** → **Appareils & Services**
 2. Menu ⋮ → **Application Credentials**
 3. **+ Add Application Credentials**
-4. Sélectionne "Samsung TV ArtMode"
+4. Sélectionne "Samsung Smart TV Enhanced"
 5. Colle ton Client ID et Client Secret
 6. **Add**
 
 ### 5. Configurer l'intégration
 
 1. **Paramètres** → **Appareils & Services** → **+ Add Integration**
-2. Cherche "Samsung TV ArtMode"
+2. Cherche "Samsung Smart TV Enhanced"
 3. Sélectionne **🔐 OAuth2 (Recommended)**
 4. Tu seras redirigé vers la page de login Samsung
 5. Autorise les permissions

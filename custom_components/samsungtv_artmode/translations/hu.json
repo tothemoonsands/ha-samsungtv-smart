@@ -14,7 +14,7 @@
       "st_device_not_found": "SmartThings TV eszközazonosító (deviceID) nem található.",
       "st_device_used": "SmartThings TV eszközazonosító (deviceID) már használatban van."
     },
-    "flow_title": "SamsungTV ArtMode: {model}",
+    "flow_title": "Samsung Smart TV Enhanced: {model}",
     "step": {
       "confirm": {
         "description": "Szeretné beállítani a Samsung TV-t ({model})? Ha még soha nem csatlakoztatta a Home Assistantot, akkor megjelenik egy felugró ablak a TV-n, ami engedélyezést kér. A manuális konfigurációk ezen TV esetében felülíródnak."
@@ -45,7 +45,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "SamsungTV ArtMode beállítások",
+        "title": "Samsung Smart TV Enhanced beállítások",
         "data": {
           "use_st_status_info": "Használja a SmartThings TV állapotinformációt",
           "use_st_channel_info": "Használja a SmartThings TV csatornainformációt",
@@ -58,7 +58,7 @@
         }
       },
       "menu": {
-        "title": "SamsungTV ArtMode opciók menü",
+        "title": "Samsung Smart TV Enhanced opciók menü",
         "menu_options": {
           "adv_opt": "Haladó opciók",
           "app_list": "Alkalmazások listájának konfigurálása",
@@ -70,7 +70,7 @@
         }
       },
       "adv_opt": {
-        "title": "SamsungTV ArtMode haladó opciók",
+        "title": "Samsung Smart TV Enhanced haladó opciók",
         "data": {
           "app_launch_method": "Az alkalmazások indítási módszerének használata",
           "dump_apps": "Az alkalmazások listájának naplófájlba való kiírása induláskor (amennyiben lehetséges)",
@@ -83,26 +83,26 @@
         }
       },
       "sync_ent": {
-        "title": "SamsungTV ArtMode szinkronizált entitások",
+        "title": "Samsung Smart TV Enhanced szinkronizált entitások",
         "data": {
           "sync_turn_off": "Lista azokról az entitásokról, amelyeket kikapcsol a TV-vel",
           "sync_turn_on": "Lista azokról az entitásokról, amelyeket bekapcsol a TV-vel"
         }
       },
       "app_list": {
-        "title": "SamsungTV ArtMode alkalmazások listájának konfigurálása",
+        "title": "Samsung Smart TV Enhanced alkalmazások listájának konfigurálása",
         "data": {
           "app_list": "Alkalmazások listája:"
         }
       },
       "channel_list": {
-        "title": "SamsungTV ArtMode csatornák listájának konfigurálása",
+        "title": "Samsung Smart TV Enhanced csatornák listájának konfigurálása",
         "data": {
           "channel_list": "Csatornák listája:"
         }
       },
       "source_list": {
-        "title": "SamsungTV ArtMode források listájának konfigurálása",
+        "title": "Samsung Smart TV Enhanced források listájának konfigurálása",
         "data": {
           "source_list": "Források listája:"
         }

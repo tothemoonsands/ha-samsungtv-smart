@@ -18,7 +18,7 @@
       "st_device_used": "SmartThings TV deviceID already used.",
       "wrong_api_key": "Wrong SmartThings token."
     },
-    "flow_title": "SamsungTV ArtMode: {model}",
+    "flow_title": "Samsung Smart TV Enhanced: {model}",
     "step": {
       "confirm": {
         "description": "Do you want to set up Samsung TV {model}? If you never connected Home Assistant before you should see a popup on your TV asking for authorization. Manual configurations for this TV will be overwritten."
@@ -58,7 +58,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "SamsungTV ArtMode options",
+        "title": "Samsung Smart TV Enhanced options",
         "data": {
           "use_st_status_info": "Use SmartThings TV Status information",
           "use_st_channel_info": "Use SmartThings TV Channels information",
@@ -71,7 +71,7 @@
         }
       },
       "menu": {
-        "title": "SamsungTV ArtMode options menu",
+        "title": "Samsung Smart TV Enhanced options menu",
         "menu_options": {
           "adv_opt": "Advanced options",
           "app_list": "Applications list configuration",
@@ -83,7 +83,7 @@
         }
       },
       "adv_opt": {
-        "title": "SamsungTV ArtMode advanced options",
+        "title": "Samsung Smart TV Enhanced advanced options",
         "data": {
           "app_launch_method": "Applications launch method used",
           "dump_apps": "Dump apps list on log file at startup (when possible)",
@@ -96,26 +96,26 @@
         }
       },
       "sync_ent": {
-        "title": "SamsungTV ArtMode synched entities",
+        "title": "Samsung Smart TV Enhanced synched entities",
         "data": {
           "sync_turn_off": "List of entities to Power OFF with TV",
           "sync_turn_on": "List of entities to power ON with TV"
         }
       },
       "app_list": {
-        "title": "SamsungTV ArtMode applications list configuration",
+        "title": "Samsung Smart TV Enhanced applications list configuration",
         "data": {
           "app_list": "Applications list:"
         }
       },
       "channel_list": {
-        "title": "SamsungTV ArtMode channels list configuration",
+        "title": "Samsung Smart TV Enhanced channels list configuration",
         "data": {
           "channel_list": "Channels list:"
         }
       },
       "source_list": {
-        "title": "SamsungTV ArtMode sources list configuration",
+        "title": "Samsung Smart TV Enhanced sources list configuration",
         "data": {
           "source_list": "Sources list:"
         }

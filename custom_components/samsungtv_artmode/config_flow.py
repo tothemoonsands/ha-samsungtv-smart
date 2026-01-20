@@ -1,4 +1,4 @@
-"""Config flow for Samsung TV ArtMode with OAuth2 support."""
+"""Config flow for Samsung Smart TV Enhanced with OAuth2 support."""
 
 from __future__ import annotations
 
@@ -164,7 +164,7 @@ class SamsungTVSmartOAuth2FlowHandler(
     config_entry_oauth2_flow.AbstractOAuth2FlowHandler,
     domain=DOMAIN,
 ):
-    """Handle Samsung TV ArtMode config flow with OAuth2 support."""
+    """Handle Samsung Smart TV Enhanced config flow with OAuth2 support."""
 
     DOMAIN = DOMAIN
     VERSION = 1
@@ -918,7 +918,7 @@ SamsungTVConfigFlow = SamsungTVSmartOAuth2FlowHandler
 
 
 class OptionsFlowHandler(OptionsFlow):
-    """Handle an option flow for Samsung TV ArtMode."""
+    """Handle an option flow for Samsung Smart TV Enhanced."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""

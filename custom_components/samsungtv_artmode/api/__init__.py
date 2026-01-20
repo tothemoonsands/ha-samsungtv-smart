@@ -1,1 +1,1 @@
-"""SamsungTV ArtMode TV WS API library."""
+"""Samsung Smart TV Enhanced TV WS API library."""
