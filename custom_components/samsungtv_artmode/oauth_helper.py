@@ -1,4 +1,4 @@
-"""OAuth2 token management for Samsung TV ArtMode.
+"""OAuth2 token management for Samsung Smart TV Enhanced.
 
 This module handles OAuth2 token retrieval, validation, and refresh
 for SmartThings API authentication.

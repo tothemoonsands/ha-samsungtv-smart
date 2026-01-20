@@ -1,4 +1,4 @@
-"""Diagnostics support for Samsung TV ArtMode."""
+"""Diagnostics support for Samsung Smart TV Enhanced."""
 
 from __future__ import annotations
 

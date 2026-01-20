@@ -1,4 +1,4 @@
-"""Application credentials platform for Samsung TV ArtMode."""
+"""Application credentials platform for Samsung Smart TV Enhanced."""
 
 from json import JSONDecodeError
 import logging

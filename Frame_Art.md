@@ -39,7 +39,7 @@ Frame Art Mode allows you to:
 
 ### Software
 - Home Assistant 2024.1+
-- SamsungTV ArtMode integration installed
+- Samsung Smart TV Enhanced integration installed
 
 ### Network
 - TV and Home Assistant on same network

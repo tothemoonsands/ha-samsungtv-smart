@@ -36,7 +36,7 @@ Frame Art Gallery transforms your Home Assistant dashboard into an interactive a
 
 ### Required Components
 
-1. **SamsungTV ArtMode integration** with Frame Art support
+1. **Samsung Smart TV Enhanced integration** with Frame Art support
 
 2. **Downloaded thumbnails** (see [Quick Start](#quick-start))
 

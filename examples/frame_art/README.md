@@ -166,7 +166,7 @@ trigger:
 
 ### Mandatory
 
-1. **SamsungTV ArtMode integration** installed
+1. **Samsung Smart TV Enhanced integration** installed
 2. **auto-entities** card installed (for galleries)
 3. **Frame TV** connected and configured
 
@@ -285,7 +285,7 @@ After installation:
 ## Support
 
 - 📚 [Documentation](../../docs/)
-- 🐛 [Report Issues](https://github.com/ollo69/ha-samsungtv-smart/issues)
+- 🐛 [Report Issues](https://github.com/tothemoonsands/ha-samsungtv-smart/issues)
 - 💬 [Community Forum](https://community.home-assistant.io/)
 
 ---

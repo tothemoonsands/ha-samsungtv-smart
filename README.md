@@ -1,11 +1,11 @@
-# Samsung TV ArtMode - Frame Art Edition
+# Home Assistant Samsung Smart TV Enhanced Integration with SmartThings OAuth (Frame Art Edition)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/release/TheFab21/ha-samsungtv-smart.svg)](https://github.com/TheFab21/ha-samsungtv-smart/releases)
+[![GitHub Release](https://img.shields.io/github/release/tothemoonsands/ha-samsungtv-smart.svg)](https://github.com/tothemoonsands/ha-samsungtv-smart/releases)
 
 📺 Home Assistant integration for Samsung Smart TVs with **enhanced Frame TV Art Mode support** and **OAuth2 authentication**.
 
-This is a fork of [ollo69/ha-samsungtv-smart](https://github.com/ollo69/ha-samsungtv-smart) with significant improvements for Samsung Frame TV users.
+This is a fork of [tothemoonsands/ha-samsungtv-smart](https://github.com/tothemoonsands/ha-samsungtv-smart) with significant improvements for Samsung Frame TV users.
 
 ---
 
@@ -61,7 +61,7 @@ Complete control over your Samsung Frame TV's Art Mode:
 4. Add: `https://github.com/tothemoonsands/ha-samsungtv-smart`
 5. Category: **Integration**
 6. Click **Add**
-7. Search for "Samsung TV ArtMode" and install
+7. Search for "Samsung Smart TV Enhanced" and install
 8. Restart Home Assistant
 
 ### Manual Installation
@@ -96,7 +96,7 @@ If you missed the secret: the CLI supports regenerating OAuth credentials via ap
 **Option A: Via UI**
 1. Go to **Settings** → **Devices & Services** → **Application Credentials**
 2. Click **Add Credentials**
-3. Select **Samsung TV ArtMode**
+3. Select **Samsung Smart TV Enhanced**
 4. Enter your Client ID and Client Secret
 
 **Option B: Via configuration.yaml**
@@ -112,7 +112,7 @@ application_credentials:
 
 
 1. Go to **Settings** → **Devices & Services**
-2. Click **Add Integration** → **Samsung TV ArtMode**
+2. Click **Add Integration** → **Samsung Smart TV Enhanced**
 3. Select **SmartThings OAuth** as authentication method
 4. Complete the OAuth flow in your browser
 5. Your TV should now appear with OAuth authentication

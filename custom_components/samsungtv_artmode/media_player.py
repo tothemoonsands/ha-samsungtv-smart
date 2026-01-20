@@ -715,7 +715,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 _LOGGER.error(
                     "Could not get OAuth implementation - Application Credentials may be missing. "
                     "Go to Settings > Devices & Services > Application Credentials "
-                    "and add credentials for Samsung TV ArtMode, then reconfigure the integration."
+                    "and add credentials for Samsung Smart TV Enhanced, then reconfigure the integration."
                 )
                 return False
                 
@@ -2983,7 +2983,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         for index, entity in enumerate(entity_list):
             if index >= MAX_CONTROLLED_ENTITY:
                 _LOGGER.warning(
-                    "SamsungTV ArtMode - Maximum %s entities can be controlled",
+                    "Samsung Smart TV Enhanced - Maximum %s entities can be controlled",
                     MAX_CONTROLLED_ENTITY,
                 )
                 break
@@ -3016,6 +3016,6 @@ async def _async_call_service(
             validate_config=True,
         )
     except HomeAssistantError as ex:
-        _LOGGER.error("SamsungTV ArtMode - error %s", ex)
+        _LOGGER.error("Samsung Smart TV Enhanced - error %s", ex)
 
     return

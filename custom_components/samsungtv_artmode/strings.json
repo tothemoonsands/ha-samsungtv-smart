@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Samsung TV ArtMode - Authentication",
+        "title": "Samsung Smart TV Enhanced - Authentication",
         "description": "Choose how to authenticate with SmartThings.\n\nOAuth Status: {oauth_status}",
         "data": {
           "auth_method": "Authentication Method"
@@ -98,7 +98,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Samsung TV ArtMode Options",
+        "title": "Samsung Smart TV Enhanced Options",
         "data": {
           "logo_option": "Logo Style",
           "use_local_logo": "Use Local Logo Cache",
@@ -172,7 +172,7 @@
     }
   },
   "application_credentials": {
-    "description": "To use OAuth2 authentication with Samsung TV ArtMode, you need to create SmartThings developer credentials.\n\n**Setup Instructions:**\n\n1. Go to [SmartThings Developer Portal](https://developer.smartthings.com/)\n2. Sign in with your Samsung account\n3. Click **New Project** → Select **Automation for the Home**\n4. Give your project a name (e.g., 'Home Assistant TV')\n5. Click **Register App** in the sidebar\n6. Select **OAuth2 / Credentials**\n7. Fill in the form:\n   - **App Name**: Home Assistant Samsung TV\n   - **Redirect URI**: `{callback_url}`\n   - **Scopes**: Select `r:devices:*` and `x:devices:*`\n8. Click **Save** and copy your credentials below\n\n[SmartThings OAuth Documentation](https://developer.smartthings.com/docs/connected-services/oauth-integrations)"
+    "description": "To use OAuth2 authentication with Samsung Smart TV Enhanced, you need to create SmartThings developer credentials.\n\n**Setup Instructions:**\n\n1. Go to [SmartThings Developer Portal](https://developer.smartthings.com/)\n2. Sign in with your Samsung account\n3. Click **New Project** → Select **Automation for the Home**\n4. Give your project a name (e.g., 'Home Assistant TV')\n5. Click **Register App** in the sidebar\n6. Select **OAuth2 / Credentials**\n7. Fill in the form:\n   - **App Name**: Home Assistant Samsung TV\n   - **Redirect URI**: `{callback_url}`\n   - **Scopes**: Select `r:devices:*` and `x:devices:*`\n8. Click **Save** and copy your credentials below\n\n[SmartThings OAuth Documentation](https://developer.smartthings.com/docs/connected-services/oauth-integrations)"
   },
   "exceptions": {
     "oauth2_implementation_unavailable": {

@@ -1,4 +1,4 @@
-"""Logo implementation for SamsungTV ArtMode."""
+"""Logo implementation for Samsung Smart TV Enhanced."""
 
 import asyncio
 from datetime import datetime, timedelta
