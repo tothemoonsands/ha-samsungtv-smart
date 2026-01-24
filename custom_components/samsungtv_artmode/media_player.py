@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from enum import Enum
+import json
 import logging
 import os
 from socket import error as socketError
@@ -2793,9 +2794,32 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return {"error": "Frame TV not supported"}
         try:
             result = await self._art_api.get_brightness()
+            tv_brightness = result
+            if isinstance(result, dict):
+                tv_brightness = result.get("value")
+                if tv_brightness is None:
+                    tv_brightness = result.get("brightness")
+                if tv_brightness is None:
+                    data = result.get("data")
+                    if isinstance(data, dict):
+                        tv_brightness = data.get("value")
+                if tv_brightness is None:
+                    data = result.get("data")
+                    if isinstance(data, str):
+                        try:
+                            parsed = json.loads(data)
+                        except json.JSONDecodeError:
+                            parsed = None
+                        if isinstance(parsed, dict):
+                            tv_brightness = parsed.get("value")
+            if isinstance(tv_brightness, str):
+                try:
+                    tv_brightness = int(tv_brightness)
+                except ValueError:
+                    tv_brightness = None
             # Convert TV's 1-10 scale to 0-100 for UI
-            ui_brightness = result * 10 if result else None
-            return {"brightness_tv": result, "brightness_ui": ui_brightness}
+            ui_brightness = tv_brightness * 10 if tv_brightness is not None else None
+            return {"brightness_tv": tv_brightness, "brightness_ui": ui_brightness}
         except Exception as ex:
             _LOGGER.error("Error getting brightness: %s", ex)
             return {"error": str(ex)}
