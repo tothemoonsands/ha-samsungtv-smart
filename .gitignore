@@ -18,3 +18,10 @@ config/*
 !config/configuration.yaml
 # Codex local context artifacts
 .codex/context/
+.codex/.DS_Store
+
+# Nova local workspace
+.nova/
+
+# macOS metadata
+.DS_Store
