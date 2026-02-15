@@ -622,7 +622,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                     self._st_api_key = new_token
                     if self._st:
                         self._st._api_key = new_token
-                        self._st._st.authenticate(new_token)
                     return True
             return False
         
@@ -642,7 +641,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                         self._st_api_key = new_token
                         if self._st:
                             self._st._api_key = new_token
-                            self._st._st.authenticate(new_token)
                     return True
             
             set_oauth_refresh_in_progress(self._entry_id, True)
@@ -739,7 +737,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             # Update SmartThingsTV directly (callback is disabled for OAuth)
             if self._st:
                 self._st._api_key = self._st_api_key
-                self._st._st.authenticate(self._st_api_key)
                 _LOGGER.debug("Updated SmartThingsTV with new OAuth token")
                 
             _LOGGER.info("OAuth token refreshed successfully, new expiration in %.0f seconds", 
