@@ -65,15 +65,22 @@ async def async_setup_entry(
     
     entities = []
     
-    # Create the Art API instance
-    art_api = SamsungTVAsyncArt(
-        host=host,
-        port=port,
-        token=token,
-        session=session,
-        timeout=5,
-        name=f"{WS_PREFIX} {ws_name} Art",
-    )
+    # Reuse shared Art API instance when already created by another platform.
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    art_api = entry_data.get(DATA_ART_API)
+    if art_api:
+        _LOGGER.debug("Sensor using shared Frame Art API instance")
+    else:
+        art_api = SamsungTVAsyncArt(
+            host=host,
+            port=port,
+            token=token,
+            session=session,
+            timeout=5,
+            name=f"{WS_PREFIX} {ws_name} Art",
+        )
+        entry_data[DATA_ART_API] = art_api
+        _LOGGER.debug("Sensor created and registered shared Frame Art API instance")
     
     # Quick check if Frame TV is supported (with short timeout)
     try:
@@ -95,9 +102,6 @@ async def async_setup_entry(
             _LOGGER.debug("Frame Art directory ready: %s", www_path)
         except Exception as ex:
             _LOGGER.warning("Could not create frame_art directory: %s", ex)
-        
-        # Store art_api in hass.data for sharing with media_player
-        hass.data[DOMAIN][entry.entry_id][DATA_ART_API] = art_api
         
         # Create the coordinator
         coordinator = FrameArtCoordinator(hass, art_api, entry)

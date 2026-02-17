@@ -82,6 +82,7 @@ class SamsungTVAsyncArt:
         self._pending_requests: dict[str, asyncio.Future] = {}
         self._recv_task: asyncio.Task | None = None
         self._connected = False
+        self._ws_lifecycle_lock = asyncio.Lock()
 
     def _get_uuid(self) -> str:
         """Generate a new UUID for art requests."""
@@ -106,94 +107,100 @@ class SamsungTVAsyncArt:
 
     async def open(self) -> bool:
         """Open WebSocket connection and start listening."""
-        if self._ws and not self._ws.closed:
-            return True
+        async with self._ws_lifecycle_lock:
+            if self._ws and not self._ws.closed:
+                return True
 
-        try:
-            session = await self._get_session()
-            ssl_context = _get_ssl_context() if self._port == 8002 else None
-            
-            _LOGGER.debug("Art API: Connecting to %s", self._ws_url)
-            
-            self._ws = await session.ws_connect(
-                self._ws_url,
-                timeout=aiohttp.ClientTimeout(total=self._timeout),
-                ssl=ssl_context,
-            )
-            
-            # Wait for connection events
-            ready = False
-            for _ in range(5):  # Max 5 events to find ready
-                try:
-                    msg = await asyncio.wait_for(self._ws.receive(), timeout=self._timeout)
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        response = json.loads(msg.data)
-                        event = response.get("event", "")
-                        _LOGGER.debug("Art API: Connection event: %s", event)
-                        
-                        if event == MS_CHANNEL_READY_EVENT:
-                            ready = True
+            ws: aiohttp.ClientWebSocketResponse | None = None
+            try:
+                session = await self._get_session()
+                ssl_context = _get_ssl_context() if self._port == 8002 else None
+
+                _LOGGER.debug("Art API: Connecting to %s", self._ws_url)
+
+                ws = await session.ws_connect(
+                    self._ws_url,
+                    timeout=aiohttp.ClientTimeout(total=self._timeout),
+                    ssl=ssl_context,
+                )
+
+                # Wait for connection events
+                ready = False
+                for _ in range(5):  # Max 5 events to find ready
+                    try:
+                        msg = await asyncio.wait_for(ws.receive(), timeout=self._timeout)
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            response = json.loads(msg.data)
+                            event = response.get("event", "")
+                            _LOGGER.debug("Art API: Connection event: %s", event)
+
+                            if event == MS_CHANNEL_READY_EVENT:
+                                ready = True
+                                break
+                            if event == MS_CHANNEL_CONNECT_EVENT:
+                                # Continue waiting for ready
+                                continue
+                        elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                             break
-                        elif event == MS_CHANNEL_CONNECT_EVENT:
-                            # Continue waiting for ready
-                            continue
-                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                    except asyncio.TimeoutError:
                         break
-                except asyncio.TimeoutError:
-                    break
-            
-            if not ready:
-                _LOGGER.warning("Art API: Did not receive ready event")
-                await self.close()
+
+                if not ready:
+                    _LOGGER.warning("Art API: Did not receive ready event")
+                    await ws.close()
+                    return False
+
+                self._ws = ws
+                self._connected = True
+
+                # Start receive loop only if one is not already active.
+                if not self._recv_task or self._recv_task.done():
+                    self._recv_task = asyncio.create_task(self._receive_loop(ws))
+
+                _LOGGER.debug("Art API: Connected and listening")
+                return True
+
+            except Exception as ex:
+                _LOGGER.warning("Art API: Connection failed: %s", ex)
+                self._connected = False
+                if ws and not ws.closed:
+                    await ws.close()
                 return False
-            
-            self._connected = True
-            
-            # Start the receive loop
-            self._recv_task = asyncio.create_task(self._receive_loop())
-            
-            _LOGGER.debug("Art API: Connected and listening")
-            return True
-            
-        except Exception as ex:
-            _LOGGER.warning("Art API: Connection failed: %s", ex)
-            await self.close()
-            return False
 
     async def close(self) -> None:
         """Close the connection."""
-        self._connected = False
-        
-        if self._recv_task:
-            self._recv_task.cancel()
+        async with self._ws_lifecycle_lock:
+            self._connected = False
+            ws = self._ws
+            recv_task = self._recv_task
+            self._ws = None
+            self._recv_task = None
+
+        if recv_task and recv_task is not asyncio.current_task():
+            recv_task.cancel()
             try:
-                await self._recv_task
+                await recv_task
             except asyncio.CancelledError:
                 pass
-            self._recv_task = None
-        
-        if self._ws and not self._ws.closed:
-            await self._ws.close()
-        self._ws = None
-        
+
+        if ws and not ws.closed:
+            await ws.close()
+
         # Cancel all pending requests
         for future in self._pending_requests.values():
             if not future.done():
                 future.cancel()
         self._pending_requests.clear()
-        
+
         # Close own session if created
         if self._session and not self._external_session:
             await self._session.close()
             self._session = None
 
-    async def _receive_loop(self) -> None:
+    async def _receive_loop(self, ws: aiohttp.ClientWebSocketResponse) -> None:
         """Background task to receive and process WebSocket messages."""
-        if not self._ws:
-            return
-            
         try:
-            async for msg in self._ws:
+            async for msg in ws:
                 if msg.type == aiohttp.WSMsgType.TEXT:
                     try:
                         response = json.loads(msg.data)
@@ -212,7 +219,12 @@ class SamsungTVAsyncArt:
         except Exception as ex:
             _LOGGER.debug("Art API: Receive loop error: %s", ex)
         finally:
-            self._connected = False
+            async with self._ws_lifecycle_lock:
+                if self._ws is ws:
+                    self._ws = None
+                self._connected = False
+                if self._recv_task and self._recv_task.done():
+                    self._recv_task = None
 
     async def _process_event(self, event: str, response: dict) -> None:
         """Process incoming WebSocket events."""

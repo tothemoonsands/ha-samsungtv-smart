@@ -497,6 +497,9 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 timeout=DEFAULT_TIMEOUT,
                 name=f"{WS_PREFIX} {ws_name} Art",
             )
+            if entry_data is not None:
+                entry_data[DATA_ART_API] = self._art_api
+            _LOGGER.debug("Created and registered shared Frame Art API instance")
         self._frame_tv_supported: bool | None = None
         self._frame_art_last_result: dict | None = None
 
