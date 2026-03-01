@@ -2234,30 +2234,76 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         
         # TV is now on (or was already on), check if Art Mode is active
         _LOGGER.debug("Frame Art: TV is on, checking if Art Mode is active...")
-        
+
         try:
             # Check current Art Mode status
             async with asyncio.timeout(8):
                 art_mode_status = await self._art_api.get_artmode()
-            
-            if art_mode_status == "on":
+
+            if art_mode_status == "on" or self._ws.artmode_status == ArtModeStatus.On:
                 _LOGGER.debug("Frame Art: Art Mode already active")
                 return True
-            
-            # Art Mode is not active, activate it
+
+            # Art Mode is not active, activate with retries.
+            # Some TV models apply the command but never send a direct response, causing
+            # set_artmode() to return None/False even when activation succeeded.
             _LOGGER.info("Frame Art: Art Mode is OFF, activating it...")
-            async with asyncio.timeout(10):
-                result = await self._art_api.set_artmode(True)
-            
-            if result:
-                _LOGGER.info("Frame Art: Art Mode successfully activated")
-                # Wait a bit for Art Mode to fully activate
+            max_attempts = 3
+
+            for attempt in range(1, max_attempts + 1):
+                set_result = None
+                try:
+                    async with asyncio.timeout(10):
+                        set_result = await self._art_api.set_artmode(True)
+                except asyncio.TimeoutError:
+                    _LOGGER.debug(
+                        "Frame Art: set_artmode timed out on attempt %d/%d",
+                        attempt,
+                        max_attempts,
+                    )
+                except Exception as set_ex:
+                    _LOGGER.debug(
+                        "Frame Art: set_artmode error on attempt %d/%d: %s",
+                        attempt,
+                        max_attempts,
+                        set_ex,
+                    )
+
+                # Give TV a moment, then verify actual state.
                 await asyncio.sleep(2)
-                return True
-            else:
-                _LOGGER.error("Frame Art: Failed to activate Art Mode")
-                return False
-                
+                verify_status = None
+                try:
+                    async with asyncio.timeout(6):
+                        verify_status = await self._art_api.get_artmode()
+                except Exception as verify_ex:
+                    _LOGGER.debug(
+                        "Frame Art: verification error on attempt %d/%d: %s",
+                        attempt,
+                        max_attempts,
+                        verify_ex,
+                    )
+
+                if verify_status == "on" or self._ws.artmode_status == ArtModeStatus.On:
+                    _LOGGER.info(
+                        "Frame Art: Art Mode active after attempt %d/%d (set_artmode result=%s)",
+                        attempt,
+                        max_attempts,
+                        set_result,
+                    )
+                    return True
+
+                _LOGGER.debug(
+                    "Frame Art: Art Mode still OFF after attempt %d/%d (set_artmode result=%s, verify_status=%s, ws_status=%s)",
+                    attempt,
+                    max_attempts,
+                    set_result,
+                    verify_status,
+                    self._ws.artmode_status,
+                )
+
+            _LOGGER.error("Frame Art: Failed to activate Art Mode after %d attempts", max_attempts)
+            return False
+
         except asyncio.TimeoutError:
             _LOGGER.error("Frame Art: Timeout checking/activating Art Mode")
             return False
