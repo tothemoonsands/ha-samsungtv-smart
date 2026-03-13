@@ -89,13 +89,21 @@ class SamsungTVAsyncArt:
         self._art_uuid = str(uuid.uuid4())
         return self._art_uuid
 
-    @property
-    def _ws_url(self) -> str:
+    def _get_ws_url(self, port: int) -> str:
         """Get the WebSocket URL for the art API."""
-        scheme = "wss" if self._port == 8002 else "ws"
+        scheme = "wss" if port == 8002 else "ws"
         name = _serialize_string(self._name)
-        token_part = f"&token={self._token}" if self._token and self._port == 8002 else ""
-        return f"{scheme}://{self._host}:{self._port}/api/v2/channels/{ART_ENDPOINT}?name={name}{token_part}"
+        token_part = f"&token={self._token}" if self._token and port == 8002 else ""
+        return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}{token_part}"
+
+    def _get_candidate_ports(self) -> list[int]:
+        """Return the ports to try for the art websocket."""
+        ports = [self._port]
+        if self._port == 8001:
+            ports.append(8002)
+        elif self._port == 8002:
+            ports.append(8001)
+        return ports
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -111,61 +119,79 @@ class SamsungTVAsyncArt:
             if self._ws and not self._ws.closed:
                 return True
 
-            ws: aiohttp.ClientWebSocketResponse | None = None
-            try:
-                session = await self._get_session()
-                ssl_context = _get_ssl_context() if self._port == 8002 else None
+            session = await self._get_session()
+            candidate_ports = self._get_candidate_ports()
+            connection_errors: list[str] = []
 
-                _LOGGER.debug("Art API: Connecting to %s", self._ws_url)
+            for index, port in enumerate(candidate_ports):
+                ws: aiohttp.ClientWebSocketResponse | None = None
+                ws_url = self._get_ws_url(port)
+                try:
+                    ssl_context = _get_ssl_context() if port == 8002 else None
 
-                ws = await session.ws_connect(
-                    self._ws_url,
-                    timeout=aiohttp.ClientTimeout(total=self._timeout),
-                    ssl=ssl_context,
-                )
+                    _LOGGER.debug("Art API: Connecting to %s", ws_url)
 
-                # Wait for connection events
-                ready = False
-                for _ in range(5):  # Max 5 events to find ready
-                    try:
-                        msg = await asyncio.wait_for(ws.receive(), timeout=self._timeout)
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            response = json.loads(msg.data)
-                            event = response.get("event", "")
-                            _LOGGER.debug("Art API: Connection event: %s", event)
+                    ws = await session.ws_connect(
+                        ws_url,
+                        timeout=aiohttp.ClientTimeout(total=self._timeout),
+                        ssl=ssl_context,
+                    )
 
-                            if event == MS_CHANNEL_READY_EVENT:
-                                ready = True
+                    # Wait for connection events
+                    ready = False
+                    for _ in range(5):  # Max 5 events to find ready
+                        try:
+                            msg = await asyncio.wait_for(ws.receive(), timeout=self._timeout)
+                            if msg.type == aiohttp.WSMsgType.TEXT:
+                                response = json.loads(msg.data)
+                                event = response.get("event", "")
+                                _LOGGER.debug("Art API: Connection event: %s", event)
+
+                                if event == MS_CHANNEL_READY_EVENT:
+                                    ready = True
+                                    break
+                                if event == MS_CHANNEL_CONNECT_EVENT:
+                                    # Continue waiting for ready
+                                    continue
+                            elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                                 break
-                            if event == MS_CHANNEL_CONNECT_EVENT:
-                                # Continue waiting for ready
-                                continue
-                        elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                        except asyncio.TimeoutError:
                             break
-                    except asyncio.TimeoutError:
-                        break
 
-                if not ready:
-                    _LOGGER.warning("Art API: Did not receive ready event")
-                    await ws.close()
-                    return False
+                    if not ready:
+                        connection_errors.append(f"port {port}: missing ready event")
+                        await ws.close()
+                        continue
 
-                self._ws = ws
-                self._connected = True
+                    self._port = port
+                    self._ws = ws
+                    self._connected = True
 
-                # Start receive loop only if one is not already active.
-                if not self._recv_task or self._recv_task.done():
-                    self._recv_task = asyncio.create_task(self._receive_loop(ws))
+                    # Start receive loop only if one is not already active.
+                    if not self._recv_task or self._recv_task.done():
+                        self._recv_task = asyncio.create_task(self._receive_loop(ws))
 
-                _LOGGER.debug("Art API: Connected and listening")
-                return True
+                    _LOGGER.debug("Art API: Connected and listening on port %s", port)
+                    return True
 
-            except Exception as ex:
-                _LOGGER.warning("Art API: Connection failed: %s", ex)
-                self._connected = False
-                if ws and not ws.closed:
-                    await ws.close()
-                return False
+                except Exception as ex:
+                    connection_errors.append(f"port {port}: {ex}")
+                    self._connected = False
+                    if ws and not ws.closed:
+                        await ws.close()
+                    if index < len(candidate_ports) - 1:
+                        _LOGGER.debug(
+                            "Art API: Connection failed on port %s, trying fallback: %s",
+                            port,
+                            ex,
+                        )
+
+            _LOGGER.warning(
+                "Art API: Connection failed after trying ports %s: %s",
+                candidate_ports,
+                "; ".join(connection_errors),
+            )
+            return False
 
     async def close(self) -> None:
         """Close the connection."""
