@@ -502,6 +502,8 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             _LOGGER.debug("Created and registered shared Frame Art API instance")
         self._frame_tv_supported: bool | None = None
         self._frame_art_last_result: dict | None = None
+        self._art_brightness_tv: int | None = None
+        self._art_brightness_ui: int | None = None
 
         # upnp initialization
         self._upnp = SamsungUPnP(host=self._host, session=session)
@@ -1438,6 +1440,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if self._ws.artmode_status != ArtModeStatus.Unsupported:
             status_on = self._ws.artmode_status == ArtModeStatus.On
             data.update({ATTR_ART_MODE_STATUS: STATE_ON if status_on else STATE_OFF})
+        if self._art_brightness_ui is not None:
+            data[ATTR_BRIGHTNESS] = self._art_brightness_ui
+            data["art_brightness"] = self._art_brightness_ui
+        if self._art_brightness_tv is not None:
+            data["art_brightness_tv"] = self._art_brightness_tv
         if self._st:
             picture_mode = self._st.picture_mode
             picture_mode_list = self._st.picture_mode_list
@@ -2101,6 +2108,43 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         
         self._frame_art_last_result = stored_result
         self.async_write_ha_state()
+
+    def _parse_art_brightness(self, result: Any) -> int | None:
+        """Extract art brightness from Samsung API responses."""
+        tv_brightness = result
+        if isinstance(result, dict):
+            tv_brightness = result.get("value")
+            if tv_brightness is None:
+                tv_brightness = result.get("brightness")
+            if tv_brightness is None:
+                data = result.get("data")
+                if isinstance(data, dict):
+                    tv_brightness = data.get("value")
+            if tv_brightness is None:
+                data = result.get("data")
+                if isinstance(data, str):
+                    try:
+                        parsed = json.loads(data)
+                    except json.JSONDecodeError:
+                        parsed = None
+                    if isinstance(parsed, dict):
+                        tv_brightness = parsed.get("value")
+        if isinstance(tv_brightness, str):
+            try:
+                tv_brightness = int(tv_brightness)
+            except ValueError:
+                tv_brightness = None
+        if isinstance(tv_brightness, int):
+            return tv_brightness
+        return None
+
+    def _update_art_brightness_cache(self, tv_brightness: int | None) -> int | None:
+        """Persist the last known art brightness for entity attributes."""
+        if tv_brightness is None:
+            return None
+        self._art_brightness_tv = tv_brightness
+        self._art_brightness_ui = max(0, min(100, tv_brightness * 10))
+        return self._art_brightness_ui
 
     async def _ensure_frame_tv_check(self) -> bool:
         """Check if Frame TV is supported (cached)."""
@@ -2822,13 +2866,32 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 tv_brightness = 0
             else:
                 tv_brightness = max(1, min(10, round(brightness / 10)))
-            
+
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
             await self._art_api.set_brightness(tv_brightness)
-            return {"success": True, "brightness_ui": brightness, "brightness_tv": tv_brightness}
+            reported_tv_brightness = tv_brightness
+            try:
+                result = await self._art_api.get_brightness()
+                reported_tv_brightness = self._parse_art_brightness(result) or tv_brightness
+            except Exception as ex:
+                _LOGGER.debug("Error confirming brightness after set: %s", ex)
+
+            reported_ui_brightness = self._update_art_brightness_cache(reported_tv_brightness)
+            result = {
+                "service": "art_set_brightness",
+                "success": True,
+                "brightness_requested_ui": brightness,
+                "brightness_requested_tv": tv_brightness,
+                "brightness_ui": reported_ui_brightness,
+                "brightness_tv": reported_tv_brightness,
+            }
+            self._store_art_result(result)
+            return result
         except Exception as ex:
             _LOGGER.error("Error setting brightness: %s", ex)
-            return {"error": str(ex)}
+            result = {"service": "art_set_brightness", "error": str(ex)}
+            self._store_art_result(result)
+            return result
 
     async def async_art_get_brightness(self) -> dict:
         """Get Art Mode brightness.
@@ -2837,38 +2900,25 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         """
         if not await self._ensure_frame_tv_check():
             _LOGGER.warning("Frame TV art mode is not supported on this device")
-            return {"error": "Frame TV not supported"}
+            result = {"service": "art_get_brightness", "error": "Frame TV not supported"}
+            self._store_art_result(result)
+            return result
         try:
             result = await self._art_api.get_brightness()
-            tv_brightness = result
-            if isinstance(result, dict):
-                tv_brightness = result.get("value")
-                if tv_brightness is None:
-                    tv_brightness = result.get("brightness")
-                if tv_brightness is None:
-                    data = result.get("data")
-                    if isinstance(data, dict):
-                        tv_brightness = data.get("value")
-                if tv_brightness is None:
-                    data = result.get("data")
-                    if isinstance(data, str):
-                        try:
-                            parsed = json.loads(data)
-                        except json.JSONDecodeError:
-                            parsed = None
-                        if isinstance(parsed, dict):
-                            tv_brightness = parsed.get("value")
-            if isinstance(tv_brightness, str):
-                try:
-                    tv_brightness = int(tv_brightness)
-                except ValueError:
-                    tv_brightness = None
-            # Convert TV's 1-10 scale to 0-100 for UI
-            ui_brightness = tv_brightness * 10 if tv_brightness is not None else None
-            return {"brightness_tv": tv_brightness, "brightness_ui": ui_brightness}
+            tv_brightness = self._parse_art_brightness(result)
+            ui_brightness = self._update_art_brightness_cache(tv_brightness)
+            stored_result = {
+                "service": "art_get_brightness",
+                "brightness_tv": tv_brightness,
+                "brightness_ui": ui_brightness,
+            }
+            self._store_art_result(stored_result)
+            return stored_result
         except Exception as ex:
             _LOGGER.error("Error getting brightness: %s", ex)
-            return {"error": str(ex)}
+            result = {"service": "art_get_brightness", "error": str(ex)}
+            self._store_art_result(result)
+            return result
 
     async def async_art_change_matte(
         self,
