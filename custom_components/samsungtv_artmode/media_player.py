@@ -2869,21 +2869,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
 
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
             await self._art_api.set_brightness(tv_brightness)
-            reported_tv_brightness = tv_brightness
-            try:
-                result = await self._art_api.get_brightness()
-                reported_tv_brightness = self._parse_art_brightness(result) or tv_brightness
-            except Exception as ex:
-                _LOGGER.debug("Error confirming brightness after set: %s", ex)
-
-            reported_ui_brightness = self._update_art_brightness_cache(reported_tv_brightness)
             result = {
                 "service": "art_set_brightness",
                 "success": True,
                 "brightness_requested_ui": brightness,
                 "brightness_requested_tv": tv_brightness,
-                "brightness_ui": reported_ui_brightness,
-                "brightness_tv": reported_tv_brightness,
             }
             self._store_art_result(result)
             return result
