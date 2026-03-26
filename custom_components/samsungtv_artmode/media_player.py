@@ -1442,7 +1442,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             data.update({ATTR_ART_MODE_STATUS: STATE_ON if status_on else STATE_OFF})
         if self._art_brightness_ui is not None:
             data[ATTR_BRIGHTNESS] = self._art_brightness_ui
-            data["art_brightness"] = self._art_brightness_ui
         if self._art_brightness_tv is not None:
             data["art_brightness_tv"] = self._art_brightness_tv
         if self._st:
