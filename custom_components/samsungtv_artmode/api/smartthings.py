@@ -98,7 +98,7 @@ COMMAND_SOUND_MODE = {
     "command": "setSoundMode",
 }
 COMMAND_PICTURE_MODE = {
-    "capability": "custom.picturemode",
+    "capability": "samsungvd.pictureMode",
     "command": "setPictureMode",
 }
 
@@ -168,6 +168,7 @@ class SmartThingsTV:
         self._sound_mode_list = None
         self._picture_mode = None
         self._picture_mode_list = None
+        self._picture_mode_map = None
 
         self._is_forced_val = False
         self._forced_count = 0
@@ -269,6 +270,26 @@ class SmartThingsTV:
         if self._state != STStatus.STATE_ON:
             return None
         return self._picture_mode_list
+
+    @staticmethod
+    def _get_name_from_map_id(mode_id: str, mode_map: list | None) -> str | None:
+        """Get a friendly mode name from a SmartThings mode id."""
+        if not mode_id or not mode_map:
+            return None
+        for map_value in mode_map:
+            if map_value.get("id") == mode_id:
+                return map_value.get("name")
+        return None
+
+    @staticmethod
+    def _get_map_id_from_name(mode_name: str, mode_map: list | None) -> str | None:
+        """Get a SmartThings mode id from a friendly mode name."""
+        if not mode_name or not mode_map:
+            return None
+        for map_value in mode_map:
+            if map_value.get("name") == mode_name:
+                return map_value.get("id")
+        return None
 
     def get_source_name(self, source_id: str) -> str:
         """Get source name based on source id."""
@@ -502,6 +523,20 @@ class SmartThingsTV:
         self._picture_mode_list = self._load_json_list(
             dev_data, "supportedPictureModes"
         )
+        self._picture_mode_map = self._load_json_list(
+            dev_data, "supportedPictureModesMap"
+        )
+        if not self._picture_mode_list and self._picture_mode_map:
+            self._picture_mode_list = [
+                map_value.get("name")
+                for map_value in self._picture_mode_map
+                if map_value.get("name")
+            ]
+        if self._picture_mode_map:
+            self._picture_mode = (
+                self._get_name_from_map_id(self._picture_mode, self._picture_mode_map)
+                or self._picture_mode
+            )
 
         # Sources and channel
         self._source_list_map = self._load_json_list(
@@ -600,9 +635,11 @@ class SmartThingsTV:
         """Select picture mode"""
         if self._state != STStatus.STATE_ON:
             return
-        if mode not in self._picture_mode_list:
+        valid_modes = self._picture_mode_list or []
+        command_mode = self._get_map_id_from_name(mode, self._picture_mode_map) or mode
+        if mode not in valid_modes and command_mode not in valid_modes:
             raise InvalidSmartThingsPictureMode()
-        data_cmd = _command(COMMAND_PICTURE_MODE, [mode])
+        data_cmd = _command(COMMAND_PICTURE_MODE, [command_mode])
         await self._async_send_command(data_cmd)
         self._picture_mode = mode
 
