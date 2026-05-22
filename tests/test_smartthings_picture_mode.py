@@ -1,6 +1,11 @@
 """Tests for SmartThings picture mode id selection."""
 
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from custom_components.samsungtv_artmode.api.smartthings import SmartThingsTV
+from custom_components.samsungtv_artmode.api.smartthings import STStatus
 
 
 PICTURE_MODE_MAP = [
@@ -52,3 +57,50 @@ def test_picture_mode_mapping_accepts_exact_mode_ids() -> None:
 def test_picture_mode_mapping_uses_known_samsung_ids_without_runtime_map() -> None:
     """Common Samsung picture modes should map to ids when no map is reported."""
     assert SmartThingsTV._get_map_id_from_name("Movie", None) == "modeMovie"
+
+
+def _picture_mode_tv() -> SmartThingsTV:
+    tv = SmartThingsTV("token", "device-id", session=MagicMock())
+    tv._state = STStatus.STATE_ON
+    tv._picture_mode_list = ["Dynamic", "Movie", "FILMMAKER MODE"]
+    tv._picture_mode_map = PICTURE_MODE_MAP
+    tv._async_send_command = AsyncMock()
+    return tv
+
+
+@pytest.mark.asyncio
+async def test_set_picture_mode_skips_matching_friendly_mode() -> None:
+    """Repeated friendly mode automation calls should not resend commands."""
+    tv = _picture_mode_tv()
+    tv._picture_mode = "Movie"
+    tv._picture_mode_id = "modeMovie"
+
+    assert await tv.async_set_picture_mode("Movie") is False
+
+    tv._async_send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_set_picture_mode_skips_matching_exact_mode_id() -> None:
+    """Repeated exact id automation calls should not resend commands."""
+    tv = _picture_mode_tv()
+    tv._picture_mode = "Movie"
+    tv._picture_mode_id = "modeMovieHDR"
+
+    assert await tv.async_set_picture_mode("modeMovieHDR") is False
+
+    tv._async_send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_set_picture_mode_sends_exact_id_when_signal_family_differs() -> None:
+    """Exact SDR/HDR ids remain distinct even when the friendly name matches."""
+    tv = _picture_mode_tv()
+    tv._picture_mode = "Movie"
+    tv._picture_mode_id = "modeMovieHDR"
+
+    assert await tv.async_set_picture_mode("modeMovie") is True
+
+    tv._async_send_command.assert_awaited_once()
+    assert tv._picture_mode_id == "modeMovie"
+    assert tv._picture_mode == "Movie"

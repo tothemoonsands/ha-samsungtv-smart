@@ -2084,7 +2084,8 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         """Select picture mode."""
         if not self._st:
             raise NotImplementedError()
-        await self._st.async_set_picture_mode(picture_mode)
+        if await self._st.async_set_picture_mode(picture_mode):
+            self.async_write_ha_state()
 
     # ==========================================
     # Frame Art Extended Service Methods

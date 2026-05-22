@@ -326,6 +326,14 @@ class SmartThingsTV:
         ]
         return (preferred_matches or mode_matches)[0]
 
+    @staticmethod
+    def _is_map_id(mode_name: str, mode_map: list | None) -> bool:
+        """Return true when the requested mode is already a SmartThings id."""
+        if not mode_name:
+            return False
+        mode_map = mode_map or DEFAULT_PICTURE_MODE_MAP
+        return any(map_value.get("id") == mode_name for map_value in mode_map)
+
     def get_source_name(self, source_id: str) -> str:
         """Get source name based on source id."""
         if not self._source_list_map:
@@ -670,7 +678,7 @@ class SmartThingsTV:
     async def async_set_picture_mode(self, mode):
         """Select picture mode"""
         if self._state != STStatus.STATE_ON:
-            return
+            return False
         valid_modes = self._picture_mode_list or []
         valid_mode_ids = [
             map_value.get("id")
@@ -691,9 +699,23 @@ class SmartThingsTV:
             and command_mode not in valid_mode_ids
         ):
             raise InvalidSmartThingsPictureMode()
+        if self._picture_mode_id == command_mode:
+            _LOGGER.debug("Skipping picture mode %s; already active", command_mode)
+            return False
+        if (
+            not self._is_map_id(mode, self._picture_mode_map)
+            and self._picture_mode == mode
+        ):
+            _LOGGER.debug("Skipping picture mode %s; already active", mode)
+            return False
         data_cmd = _command(COMMAND_PICTURE_MODE, [command_mode])
         await self._async_send_command(data_cmd)
-        self._picture_mode = mode
+        self._picture_mode_id = command_mode
+        self._picture_mode = (
+            self._get_name_from_map_id(command_mode, self._picture_mode_map)
+            or mode
+        )
+        return True
 
 
 class InvalidSmartThingsSoundMode(RuntimeError):
