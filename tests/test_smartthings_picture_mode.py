@@ -47,3 +47,8 @@ def test_picture_mode_mapping_accepts_exact_mode_ids() -> None:
         SmartThingsTV._get_map_id_from_name("modeMovieHDR", PICTURE_MODE_MAP)
         == "modeMovieHDR"
     )
+
+
+def test_picture_mode_mapping_uses_known_samsung_ids_without_runtime_map() -> None:
+    """Common Samsung picture modes should map to ids when no map is reported."""
+    assert SmartThingsTV._get_map_id_from_name("Movie", None) == "modeMovie"

@@ -101,6 +101,18 @@ COMMAND_PICTURE_MODE = {
     "capability": "samsungvd.pictureMode",
     "command": "setPictureMode",
 }
+DEFAULT_PICTURE_MODE_MAP = [
+    {"name": "Dynamic", "id": "modeDynamicHDR"},
+    {"name": "Eco", "id": "modeEcoHDR"},
+    {"name": "FILMMAKER MODE", "id": "modeFilmmakerModeHDR"},
+    {"name": "Movie", "id": "modeMovieHDR"},
+    {"name": "Standard", "id": "modeStandardHDR"},
+    {"name": "Dynamic", "id": "modeDynamic"},
+    {"name": "Eco", "id": "modeEco"},
+    {"name": "FILMMAKER MODE", "id": "modeFilmmakerMode"},
+    {"name": "Movie", "id": "modeMovie"},
+    {"name": "Standard", "id": "modeStandard"},
+]
 
 DIGITAL_TV = "digitalTv"
 
@@ -289,8 +301,9 @@ class SmartThingsTV:
         current_mode_id: str | None = None,
     ) -> str | None:
         """Get a SmartThings mode id from a friendly mode name."""
-        if not mode_name or not mode_map:
+        if not mode_name:
             return None
+        mode_map = mode_map or DEFAULT_PICTURE_MODE_MAP
         if any(map_value.get("id") == mode_name for map_value in mode_map):
             return mode_name
 
@@ -659,13 +672,24 @@ class SmartThingsTV:
         if self._state != STStatus.STATE_ON:
             return
         valid_modes = self._picture_mode_list or []
+        valid_mode_ids = [
+            map_value.get("id")
+            for map_value in (self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP)
+            if map_value.get("id")
+            and (not valid_modes or map_value.get("name") in valid_modes)
+        ]
         command_mode = (
             self._get_map_id_from_name(
                 mode, self._picture_mode_map, self._picture_mode_id
             )
             or mode
         )
-        if mode not in valid_modes and command_mode not in valid_modes:
+        if (
+            mode not in valid_modes
+            and mode not in valid_mode_ids
+            and command_mode not in valid_modes
+            and command_mode not in valid_mode_ids
+        ):
             raise InvalidSmartThingsPictureMode()
         data_cmd = _command(COMMAND_PICTURE_MODE, [command_mode])
         await self._async_send_command(data_cmd)
