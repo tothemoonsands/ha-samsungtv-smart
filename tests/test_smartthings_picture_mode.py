@@ -106,6 +106,23 @@ async def test_set_picture_mode_sends_exact_id_when_signal_family_differs() -> N
 
 
 @pytest.mark.asyncio
+async def test_set_picture_mode_sends_friendly_name() -> None:
+    """Samsung accepts friendly picture mode names even when ids are mapped."""
+    tv = _picture_mode_tv()
+    tv._picture_mode = "Movie"
+    tv._picture_mode_id = "Movie"
+
+    assert await tv.async_set_picture_mode("FILMMAKER MODE") is True
+
+    tv._async_send_command.assert_awaited_once()
+    data_cmd = tv._async_send_command.await_args.args[0]
+    assert "FILMMAKER MODE" in data_cmd
+    assert "modeFilmmakerModeHDR" not in data_cmd
+    assert tv._picture_mode_id == "FILMMAKER MODE"
+    assert tv._picture_mode == "FILMMAKER MODE"
+
+
+@pytest.mark.asyncio
 async def test_set_picture_mode_uses_friendly_name_after_default_map_fallback() -> None:
     """Optimistic state should stay friendly when only built-in ids are available."""
     tv = _picture_mode_tv()

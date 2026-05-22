@@ -694,27 +694,24 @@ class SmartThingsTV:
         if self._state != STStatus.STATE_ON:
             return False
         valid_modes = self._picture_mode_list or []
+        mode_map = self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP
         valid_mode_ids = [
             map_value.get("id")
-            for map_value in (self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP)
+            for map_value in mode_map
             if map_value.get("id")
             and (not valid_modes or map_value.get("name") in valid_modes)
         ]
-        command_mode = (
-            self._get_map_id_from_name(
-                mode, self._picture_mode_map, self._picture_mode_id
-            )
-            or mode
-        )
+        valid_mode_names = [
+            map_value.get("name") for map_value in mode_map if map_value.get("name")
+        ]
         if (
             mode not in valid_modes
             and mode not in valid_mode_ids
-            and command_mode not in valid_modes
-            and command_mode not in valid_mode_ids
+            and mode not in valid_mode_names
         ):
             raise InvalidSmartThingsPictureMode()
-        if self._picture_mode_id == command_mode:
-            _LOGGER.debug("Skipping picture mode %s; already active", command_mode)
+        if self._picture_mode_id == mode:
+            _LOGGER.debug("Skipping picture mode %s; already active", mode)
             return False
         if (
             not self._is_map_id(mode, self._picture_mode_map)
@@ -722,12 +719,12 @@ class SmartThingsTV:
         ):
             _LOGGER.debug("Skipping picture mode %s; already active", mode)
             return False
-        data_cmd = _command(COMMAND_PICTURE_MODE, [command_mode])
+        data_cmd = _command(COMMAND_PICTURE_MODE, [mode])
         await self._async_send_command(data_cmd)
-        self._picture_mode_id = command_mode
+        self._picture_mode_id = mode
         self._picture_mode = (
             self._get_name_from_map_id(
-                command_mode, self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP
+                mode, self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP
             )
             or mode
         )
