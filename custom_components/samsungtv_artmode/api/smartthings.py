@@ -284,6 +284,20 @@ class SmartThingsTV:
             return None
         return self._picture_mode_list
 
+    @property
+    def picture_mode_id(self):
+        """Return current SmartThings picture mode id."""
+        if self._state != STStatus.STATE_ON:
+            return None
+        return self._picture_mode_id
+
+    @property
+    def picture_mode_map(self):
+        """Return SmartThings picture mode id map."""
+        if self._state != STStatus.STATE_ON:
+            return None
+        return self._picture_mode_map
+
     @staticmethod
     def _get_name_from_map_id(mode_id: str, mode_map: list | None) -> str | None:
         """Get a friendly mode name from a SmartThings mode id."""

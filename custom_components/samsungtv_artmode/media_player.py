@@ -1447,10 +1447,16 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if self._st:
             picture_mode = self._st.picture_mode
             picture_mode_list = self._st.picture_mode_list
+            picture_mode_id = self._st.picture_mode_id
+            picture_mode_map = self._st.picture_mode_map
             if picture_mode:
                 data[ATTR_PICTURE_MODE] = picture_mode
             if picture_mode_list:
                 data[ATTR_PICTURE_MODE_LIST] = picture_mode_list
+            if picture_mode_id:
+                data["picture_mode_id"] = picture_mode_id
+            if picture_mode_map:
+                data["picture_mode_map"] = picture_mode_map
 
         # Add Frame Art last result if available
         if hasattr(self, "_frame_art_last_result") and self._frame_art_last_result:
