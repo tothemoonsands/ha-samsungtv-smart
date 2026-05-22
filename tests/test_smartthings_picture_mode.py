@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.samsungtv_artmode.api.smartthings import SmartThingsTV
-from custom_components.samsungtv_artmode.api.smartthings import STStatus
+from custom_components.samsungtv_artmode.api.smartthings import STStatus, SmartThingsTV
 
 
 PICTURE_MODE_MAP = [
@@ -102,5 +101,18 @@ async def test_set_picture_mode_sends_exact_id_when_signal_family_differs() -> N
     assert await tv.async_set_picture_mode("modeMovie") is True
 
     tv._async_send_command.assert_awaited_once()
+    assert tv._picture_mode_id == "modeMovie"
+    assert tv._picture_mode == "Movie"
+
+
+@pytest.mark.asyncio
+async def test_set_picture_mode_uses_friendly_name_after_default_map_fallback() -> None:
+    """Optimistic state should stay friendly when only built-in ids are available."""
+    tv = _picture_mode_tv()
+    tv._picture_mode_list = []
+    tv._picture_mode_map = None
+
+    assert await tv.async_set_picture_mode("modeMovie") is True
+
     assert tv._picture_mode_id == "modeMovie"
     assert tv._picture_mode == "Movie"

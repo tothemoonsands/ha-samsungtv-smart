@@ -712,7 +712,9 @@ class SmartThingsTV:
         await self._async_send_command(data_cmd)
         self._picture_mode_id = command_mode
         self._picture_mode = (
-            self._get_name_from_map_id(command_mode, self._picture_mode_map)
+            self._get_name_from_map_id(
+                command_mode, self._picture_mode_map or DEFAULT_PICTURE_MODE_MAP
+            )
             or mode
         )
         return True
