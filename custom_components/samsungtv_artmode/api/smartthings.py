@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from asyncio import TimeoutError as AsyncTimeoutError
+from asyncio import TimeoutError as AsyncTimeoutError, sleep
 from collections.abc import Callable
 from datetime import timedelta
 from enum import Enum
@@ -440,8 +440,7 @@ class SmartThingsTV:
 
         return result
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def _device_refresh(self, **kwargs):
+    async def _async_device_refresh(self):
         """Refresh device status on SmartThings"""
 
         device_id = self._device_id
@@ -466,7 +465,14 @@ class SmartThingsTV:
 
         return
 
-    async def _async_send_command(self, data_cmd):
+    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    async def _device_refresh(self, **kwargs):
+        """Refresh device status on SmartThings with normal throttling."""
+        return await self._async_device_refresh()
+
+    async def _async_send_command(
+        self, data_cmd, *, force_refresh: bool = False, refresh_delay: float = 0
+    ):
         """Send a command via SmartThings"""
         device_id = self._device_id
         if not device_id:
@@ -485,7 +491,12 @@ class SmartThingsTV:
         ) as resp:
             await resp.json()
 
-        await self._device_refresh()
+        if refresh_delay:
+            await sleep(refresh_delay)
+        if force_refresh:
+            await self._async_device_refresh()
+        else:
+            await self._device_refresh()
 
     async def async_device_health(self):
         """Check device availability"""
@@ -711,7 +722,7 @@ class SmartThingsTV:
         ):
             raise InvalidSmartThingsPictureMode()
         data_cmd = _command(COMMAND_PICTURE_MODE, [mode])
-        await self._async_send_command(data_cmd)
+        await self._async_send_command(data_cmd, force_refresh=True, refresh_delay=2)
         self._picture_mode_id = mode
         self._picture_mode = (
             self._get_name_from_map_id(
