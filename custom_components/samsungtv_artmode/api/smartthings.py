@@ -167,6 +167,7 @@ class SmartThingsTV:
         self._sound_mode = None
         self._sound_mode_list = None
         self._picture_mode = None
+        self._picture_mode_id = None
         self._picture_mode_list = None
         self._picture_mode_map = None
 
@@ -282,14 +283,35 @@ class SmartThingsTV:
         return None
 
     @staticmethod
-    def _get_map_id_from_name(mode_name: str, mode_map: list | None) -> str | None:
+    def _get_map_id_from_name(
+        mode_name: str,
+        mode_map: list | None,
+        current_mode_id: str | None = None,
+    ) -> str | None:
         """Get a SmartThings mode id from a friendly mode name."""
         if not mode_name or not mode_map:
             return None
-        for map_value in mode_map:
-            if map_value.get("name") == mode_name:
-                return map_value.get("id")
-        return None
+        if any(map_value.get("id") == mode_name for map_value in mode_map):
+            return mode_name
+
+        mode_matches = [
+            map_value.get("id")
+            for map_value in mode_map
+            if map_value.get("name") == mode_name and map_value.get("id")
+        ]
+        if not mode_matches:
+            return None
+
+        # Newer Samsung TVs expose duplicate friendly names with SDR/HDR ids.
+        # Match the active signal family where possible; otherwise prefer SDR
+        # because TVs usually enter TV mode before Match Content switches to HDR.
+        current_is_hdr = (current_mode_id or "").endswith("HDR")
+        preferred_matches = [
+            mode_id
+            for mode_id in mode_matches
+            if mode_id.endswith("HDR") == current_is_hdr
+        ]
+        return (preferred_matches or mode_matches)[0]
 
     def get_source_name(self, source_id: str) -> str:
         """Get source name based on source id."""
@@ -519,7 +541,8 @@ class SmartThingsTV:
         self._sound_mode_list = self._load_json_list(dev_data, "supportedSoundModes")
 
         # Picture Mode
-        self._picture_mode = dev_data.get("pictureMode", {}).get("value")
+        self._picture_mode_id = dev_data.get("pictureMode", {}).get("value")
+        self._picture_mode = self._picture_mode_id
         self._picture_mode_list = self._load_json_list(
             dev_data, "supportedPictureModes"
         )
@@ -636,7 +659,12 @@ class SmartThingsTV:
         if self._state != STStatus.STATE_ON:
             return
         valid_modes = self._picture_mode_list or []
-        command_mode = self._get_map_id_from_name(mode, self._picture_mode_map) or mode
+        command_mode = (
+            self._get_map_id_from_name(
+                mode, self._picture_mode_map, self._picture_mode_id
+            )
+            or mode
+        )
         if mode not in valid_modes and command_mode not in valid_modes:
             raise InvalidSmartThingsPictureMode()
         data_cmd = _command(COMMAND_PICTURE_MODE, [command_mode])
