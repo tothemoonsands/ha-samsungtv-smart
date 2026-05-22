@@ -710,15 +710,6 @@ class SmartThingsTV:
             and mode not in valid_mode_names
         ):
             raise InvalidSmartThingsPictureMode()
-        if self._picture_mode_id == mode:
-            _LOGGER.debug("Skipping picture mode %s; already active", mode)
-            return False
-        if (
-            not self._is_map_id(mode, self._picture_mode_map)
-            and self._picture_mode == mode
-        ):
-            _LOGGER.debug("Skipping picture mode %s; already active", mode)
-            return False
         data_cmd = _command(COMMAND_PICTURE_MODE, [mode])
         await self._async_send_command(data_cmd)
         self._picture_mode_id = mode

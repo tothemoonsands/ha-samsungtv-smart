@@ -68,27 +68,27 @@ def _picture_mode_tv() -> SmartThingsTV:
 
 
 @pytest.mark.asyncio
-async def test_set_picture_mode_skips_matching_friendly_mode() -> None:
-    """Repeated friendly mode automation calls should not resend commands."""
+async def test_set_picture_mode_sends_matching_friendly_mode() -> None:
+    """Manual retries should resend commands when SmartThings state is stale."""
     tv = _picture_mode_tv()
     tv._picture_mode = "Movie"
     tv._picture_mode_id = "modeMovie"
 
-    assert await tv.async_set_picture_mode("Movie") is False
+    assert await tv.async_set_picture_mode("Movie") is True
 
-    tv._async_send_command.assert_not_awaited()
+    tv._async_send_command.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_set_picture_mode_skips_matching_exact_mode_id() -> None:
-    """Repeated exact id automation calls should not resend commands."""
+async def test_set_picture_mode_sends_matching_exact_mode_id() -> None:
+    """Exact id retries should resend commands when SmartThings state is stale."""
     tv = _picture_mode_tv()
     tv._picture_mode = "Movie"
     tv._picture_mode_id = "modeMovieHDR"
 
-    assert await tv.async_set_picture_mode("modeMovieHDR") is False
+    assert await tv.async_set_picture_mode("modeMovieHDR") is True
 
-    tv._async_send_command.assert_not_awaited()
+    tv._async_send_command.assert_awaited_once()
 
 
 @pytest.mark.asyncio
