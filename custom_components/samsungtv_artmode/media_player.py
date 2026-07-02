@@ -2294,8 +2294,26 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
         try:
-            status = await self._art_api.get_artmode()
             fallback_used = False
+            client = self._get_ip_control_client()
+            if client is not None:
+                ip_status = await client.async_get_art_mode()
+                self._ip_art_mode = ip_status
+                if ip_status is True:
+                    status = STATE_ON
+                elif ip_status is False:
+                    status = STATE_OFF
+                else:
+                    status = None
+                result = {
+                    "service": "art_get_artmode",
+                    "status": status,
+                    "method": "ip_control",
+                }
+                self._store_art_result(result)
+                return result
+
+            status = await self._art_api.get_artmode()
             if status is None:
                 client = self._get_ip_control_client()
                 if client is not None:
@@ -2336,6 +2354,19 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 }
                 self._store_art_result(result)
                 return result
+
+            if self._get_ip_control_client() is not None:
+                success = await self._async_ip_control_set_artmode(enabled)
+                if success:
+                    result = {
+                        "service": "art_set_artmode",
+                        "success": True,
+                        "enabled": enabled,
+                        "method": "ip_control",
+                        "fallback": None,
+                    }
+                    self._store_art_result(result)
+                    return result
 
             try:
                 success = await self._art_api.set_artmode(enabled)
@@ -2469,6 +2500,14 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         if known_art_mode is True:
             _LOGGER.debug("Frame Art: Art Mode already active from known state")
             return True
+
+        if self._get_ip_control_client() is not None:
+            try:
+                if await self._async_ip_control_set_artmode(True):
+                    _LOGGER.debug("Frame Art: Art Mode activated via IP Control")
+                    return True
+            except Exception as ip_ex:
+                _LOGGER.debug("Frame Art: IP Control Art Mode activation failed: %s", ip_ex)
 
         # Check if TV is off, turn it on if needed
         if self.state == MediaPlayerState.OFF:
