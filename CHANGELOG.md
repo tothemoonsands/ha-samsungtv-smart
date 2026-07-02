@@ -1,6 +1,9 @@
 # Changelog
 
 ## Unreleased
+- Fix the Art Mode switch state mirroring: `switch.artmode_art_mode` now trusts
+  the media player/sensor Art Mode status before falling back to the unreliable
+  2024 Frame art websocket.
 - Fix Art Mode brightness handling when Samsung returns websocket error objects
   or consolidated settings payloads: brightness errors no longer look like
   success, settings-style brightness is parsed, and successful writes update

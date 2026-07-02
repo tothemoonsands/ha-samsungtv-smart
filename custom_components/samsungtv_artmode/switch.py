@@ -207,6 +207,34 @@ class FrameArtModeSwitch(SwitchEntity):
         
         return None
 
+    def _get_known_art_mode_state(self) -> bool | None:
+        """Return Art Mode state from HA entities that already know it."""
+        entity_id = self._get_media_player_entity_id()
+        if entity_id:
+            state = self._hass.states.get(entity_id)
+            if state is not None:
+                art_mode_status = state.attributes.get("art_mode_status")
+                if art_mode_status == STATE_ON:
+                    return True
+                if art_mode_status == STATE_OFF:
+                    return False
+
+        entity_registry = er.async_get(self._hass)
+        for entity in entity_registry.entities.values():
+            if (
+                entity.config_entry_id == self._entry.entry_id
+                and entity.domain == "sensor"
+            ):
+                state = self._hass.states.get(entity.entity_id)
+                if state is None:
+                    continue
+                if state.state == STATE_ON:
+                    return True
+                if state.state == STATE_OFF:
+                    return False
+
+        return None
+
     async def _is_tv_on(self) -> bool:
         """Check if TV is currently on."""
         entity_id = self._get_media_player_entity_id()
@@ -435,6 +463,16 @@ class FrameArtModeSwitch(SwitchEntity):
         
         self._updating = True
         try:
+            known_art_mode = self._get_known_art_mode_state()
+            if known_art_mode is not None:
+                self._attr_is_on = known_art_mode
+                self._available = True
+                _LOGGER.debug(
+                    "Art Mode switch mirrored known entity state: %s",
+                    self._attr_is_on,
+                )
+                return
+
             # FIRST: Check if TV is powered off
             tv_is_on = await self._is_tv_on()
             
