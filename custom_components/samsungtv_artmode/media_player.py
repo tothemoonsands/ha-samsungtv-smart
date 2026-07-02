@@ -2295,7 +2295,21 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return result
         try:
             status = await self._art_api.get_artmode()
+            fallback_used = False
+            if status is None:
+                client = self._get_ip_control_client()
+                if client is not None:
+                    ip_status = await client.async_get_art_mode()
+                    self._ip_art_mode = ip_status
+                    if ip_status is True:
+                        status = STATE_ON
+                        fallback_used = True
+                    elif ip_status is False:
+                        status = STATE_OFF
+                        fallback_used = True
             result = {"service": "art_get_artmode", "status": status}
+            if fallback_used:
+                result["fallback"] = "ip_control"
             self._store_art_result(result)
             return result
         except Exception as ex:

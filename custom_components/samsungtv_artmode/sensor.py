@@ -24,16 +24,20 @@ from homeassistant.helpers.update_coordinator import (
 from pysmartthings import Attribute, Capability
 
 from .api.art import SamsungTVAsyncArt
+from .api.ipcontrol import SamsungIPControl, SamsungIPControlError
 from .const import (
     AUTH_METHOD_OAUTH,
     AUTH_METHOD_ST_ENTRY,
     CONF_API_KEY,
     CONF_AUTH_METHOD,
     CONF_DEVICE_ID,
+    CONF_ENABLE_IP_CONTROL,
+    CONF_IP_CONTROL_TOKEN,
     CONF_OAUTH_TOKEN,
     CONF_WS_NAME,
     DATA_ART_API,
     DATA_CFG,
+    DATA_OPTIONS,
     DEFAULT_PORT,
     DOMAIN,
     WS_PREFIX,
@@ -284,6 +288,8 @@ class FrameArtCoordinator(DataUpdateCoordinator):
         self._connection_failures = 0
         self._max_connection_failures = 5
         self._backoff_until: float | None = None
+        self._ip_control_client: SamsungIPControl | None = None
+        self._ip_control_token_cached: str | None = None
         
         _LOGGER.info("Frame Art Coordinator initialized with thumbnail fetching enabled")
 
@@ -347,7 +353,12 @@ class FrameArtCoordinator(DataUpdateCoordinator):
             if media_player_art_mode is not None:
                 data["art_mode"] = media_player_art_mode
                 _LOGGER.debug("Frame Art: Using media_player art_mode_status: %s", media_player_art_mode)
-            else:
+            if data["art_mode"] is None:
+                ip_art_mode = await self._async_get_ip_control_art_mode()
+                if ip_art_mode is not None:
+                    data["art_mode"] = ip_art_mode
+                    _LOGGER.debug("Frame Art: Using IP Control art_mode_status: %s", ip_art_mode)
+            if data["art_mode"] is None:
                 # Fallback to direct API call if media_player state not available
                 try:
                     async with asyncio.timeout(8):
@@ -501,7 +512,7 @@ class FrameArtCoordinator(DataUpdateCoordinator):
         return False
 
     def _get_media_player_art_mode(self) -> str | None:
-        """Get art_mode_status from the linked media_player entity."""
+        """Get explicit art_mode_status from the linked media_player entity."""
         try:
             # Find media_player entity for this config entry
             from homeassistant.helpers import entity_registry as er
@@ -517,20 +528,51 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                         art_mode_status = state.attributes.get("art_mode_status")
                         if art_mode_status:
                             return art_mode_status
-                        # If the TV media_player is actively on and showing a
-                        # normal source/app, Art Mode is definitely off even if
-                        # the art websocket cannot report status. This keeps
-                        # the sensor from going unknown while watching Apple TV
-                        # on 2024 Frames whose art-app websocket is unreliable.
-                        if state.state == "on":
-                            source = state.attributes.get("source")
-                            app_id = state.attributes.get("app_id")
-                            media_title = state.attributes.get("media_title")
-                            if source or app_id or media_title:
-                                return "off"
                     break
         except Exception as ex:
             _LOGGER.debug("Could not get media_player art_mode_status: %s", ex)
+        return None
+
+    def _get_ip_control_client(self) -> SamsungIPControl | None:
+        """Return a paired IP Control client, if available and enabled."""
+        entry = self._hass.config_entries.async_get_entry(self._entry.entry_id)
+        token = entry.data.get(CONF_IP_CONTROL_TOKEN) if entry else None
+        if not token:
+            return None
+
+        entry_data = self._hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+        options = entry_data.get(DATA_OPTIONS, {})
+        if not options.get(CONF_ENABLE_IP_CONTROL, True):
+            return None
+
+        config = entry_data.get(DATA_CFG, {})
+        host = config.get(CONF_HOST)
+        if not host:
+            return None
+
+        if self._ip_control_client is None or self._ip_control_token_cached != token:
+            self._ip_control_client = SamsungIPControl(
+                self._hass,
+                host,
+                token=token,
+            )
+            self._ip_control_token_cached = token
+        return self._ip_control_client
+
+    async def _async_get_ip_control_art_mode(self) -> str | None:
+        """Get passive Art Mode status through Samsung IP Control."""
+        client = self._get_ip_control_client()
+        if client is None:
+            return None
+        try:
+            status = await client.async_get_art_mode()
+        except SamsungIPControlError as ex:
+            _LOGGER.debug("IP Control Art Mode status failed: %s", ex)
+            return None
+        if status is True:
+            return "on"
+        if status is False:
+            return "off"
         return None
 
     def _has_current_thumbnail(self) -> bool:
