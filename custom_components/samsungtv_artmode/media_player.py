@@ -71,8 +71,11 @@ from .api.ipcontrol import (
     SamsungIPControlError,
 )
 from .const import (
+    ATTR_ARGUMENTS,
     ATTR_BRIGHTNESS,
+    ATTR_CAPABILITY,
     ATTR_CATEGORY_ID,
+    ATTR_COMMAND,
     ATTR_CONTENT_ID,
     ATTR_DURATION,
     ATTR_ENABLED,
@@ -143,6 +146,8 @@ from .const import (
     SERVICE_IP_CONTROL_PAIR,
     SERVICE_IP_CONTROL_SET_ARTMODE,
     SERVICE_SELECT_PICTURE_MODE,
+    SERVICE_SMARTTHINGS_GET_STATUS,
+    SERVICE_SMARTTHINGS_SEND_COMMAND,
     SIGNAL_CONFIG_ENTITY,
     STD_APP_LIST,
     WS_PREFIX,
@@ -273,6 +278,20 @@ async def async_setup_entry(
         SERVICE_IP_CONTROL_SET_ARTMODE,
         {vol.Required(ATTR_ENABLED): cv.boolean},
         "async_ip_control_set_artmode",
+    )
+    platform.async_register_entity_service(
+        SERVICE_SMARTTHINGS_GET_STATUS,
+        {},
+        "async_smartthings_get_status",
+    )
+    platform.async_register_entity_service(
+        SERVICE_SMARTTHINGS_SEND_COMMAND,
+        {
+            vol.Required(ATTR_CAPABILITY): cv.string,
+            vol.Required(ATTR_COMMAND): cv.string,
+            vol.Optional(ATTR_ARGUMENTS, default=[]): cv.ensure_list,
+        },
+        "async_smartthings_send_command",
     )
     platform.async_register_entity_service(
         SERVICE_ART_AVAILABLE,
@@ -2461,6 +2480,103 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         self._store_art_result(result)
         return result
 
+    @staticmethod
+    def _summarize_smartthings_states(states: dict) -> dict:
+        """Return SmartThings states in a compact, attribute-safe shape."""
+        summary = {}
+        for component, capabilities in states.items():
+            if not isinstance(capabilities, dict):
+                continue
+            component_summary = {}
+            for capability, attributes in capabilities.items():
+                if not isinstance(attributes, dict):
+                    continue
+                capability_summary = {}
+                for attribute, status in attributes.items():
+                    if isinstance(status, dict):
+                        value = status.get("value")
+                        if isinstance(value, str) and len(value) > 500:
+                            value = f"{value[:500]}..."
+                        capability_summary[attribute] = {
+                            "value": value,
+                            "unit": status.get("unit"),
+                        }
+                    else:
+                        capability_summary[attribute] = {"value": status}
+                component_summary[capability] = capability_summary
+            summary[component] = component_summary
+        return summary
+
+    async def async_smartthings_get_status(self) -> dict:
+        """Get SmartThings status for diagnostics."""
+        if self._st is None:
+            result = {
+                "service": "smartthings_get_status",
+                "success": False,
+                "error": "SmartThings is not configured",
+            }
+            self._store_art_result(result)
+            return result
+
+        try:
+            states = await self._st.async_get_device_states()
+            result = {
+                "service": "smartthings_get_status",
+                "success": True,
+                "states": self._summarize_smartthings_states(states),
+            }
+        except Exception as ex:
+            result = {
+                "service": "smartthings_get_status",
+                "success": False,
+                "error": str(ex),
+            }
+        self._store_art_result(result)
+        return result
+
+    async def async_smartthings_send_command(
+        self,
+        capability: str,
+        command: str,
+        arguments: list | None = None,
+    ) -> dict:
+        """Send a SmartThings capability command for diagnostics."""
+        if self._st is None:
+            result = {
+                "service": "smartthings_send_command",
+                "success": False,
+                "error": "SmartThings is not configured",
+            }
+            self._store_art_result(result)
+            return result
+
+        try:
+            await self._st.async_send_raw_command(
+                capability,
+                command,
+                arguments or [],
+                force_refresh=True,
+                refresh_delay=1,
+            )
+            result = {
+                "service": "smartthings_send_command",
+                "success": True,
+                "capability": capability,
+                "command": command,
+                "arguments": arguments or [],
+            }
+        except Exception as ex:
+            result = {
+                "service": "smartthings_send_command",
+                "success": False,
+                "capability": capability,
+                "command": command,
+                "arguments": arguments or [],
+                "error": str(ex),
+            }
+        self._store_art_result(result)
+        return result
+
     async def async_art_available(self, category_id: str | None = None) -> dict:
         """Get list of available artwork on the TV."""
         if not await self._ensure_frame_tv_check():
@@ -3154,28 +3270,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 tv_brightness = max(1, min(10, round(brightness / 10)))
 
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
-            client = self._get_ip_control_client()
-            if client is not None:
-                try:
-                    requested_backlight = max(0, min(50, round(brightness / 2)))
-                    backlight = await client.async_set_backlight(requested_backlight)
-                    ui_brightness = self._update_art_brightness_cache_from_ui(backlight * 2)
-                    result = {
-                        "service": "art_set_brightness",
-                        "success": True,
-                        "method": "ip_control_backlight",
-                        "brightness_requested_ui": brightness,
-                        "brightness_requested_tv": tv_brightness,
-                        "brightness_requested_backlight": requested_backlight,
-                        "brightness_backlight": backlight,
-                        "brightness_ui": ui_brightness,
-                    }
-                    self._store_art_result(result)
-                    self.async_write_ha_state()
-                    return result
-                except SamsungIPControlError as ex:
-                    _LOGGER.debug("Frame Art IP Control brightness failed: %s", ex)
-
             success = await self._art_api.set_brightness(tv_brightness)
             result = {
                 "service": "art_set_brightness",
@@ -3186,6 +3280,8 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             }
             if success:
                 self._update_art_brightness_cache(tv_brightness)
+            else:
+                result["error"] = "Art API did not confirm brightness change"
             self._store_art_result(result)
             return result
         except Exception as ex:
@@ -3205,24 +3301,6 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
         try:
-            client = self._get_ip_control_client()
-            if client is not None:
-                try:
-                    backlight = await client.async_get_backlight()
-                    ui_brightness = self._update_art_brightness_cache_from_ui(backlight * 2)
-                    stored_result = {
-                        "service": "art_get_brightness",
-                        "method": "ip_control_backlight",
-                        "brightness_backlight": backlight,
-                        "brightness_tv": self._art_brightness_tv,
-                        "brightness_ui": ui_brightness,
-                    }
-                    self._store_art_result(stored_result)
-                    self.async_write_ha_state()
-                    return stored_result
-                except SamsungIPControlError as ex:
-                    _LOGGER.debug("Frame Art IP Control brightness read failed: %s", ex)
-
             result = await self._art_api.get_brightness()
             tv_brightness = self._parse_art_brightness(result)
             ui_brightness = self._update_art_brightness_cache(tv_brightness)

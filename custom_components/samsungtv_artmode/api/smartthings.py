@@ -498,6 +498,45 @@ class SmartThingsTV:
         else:
             await self._device_refresh()
 
+    async def async_get_device_states(self) -> dict:
+        """Return raw SmartThings device states."""
+        device_id = self._device_id
+        if not device_id:
+            return {}
+
+        api_device = f"{API_DEVICES}/{device_id}"
+        api_device_status = f"{api_device}/states"
+
+        async with self._session.get(
+            api_device_status,
+            headers=_headers(self._get_api_key()),
+            raise_for_status=True,
+        ) as resp:
+            return await resp.json()
+
+    async def async_send_raw_command(
+        self,
+        capability: str,
+        command: str,
+        arguments: list | None = None,
+        *,
+        force_refresh: bool = False,
+        refresh_delay: float = 0,
+    ) -> None:
+        """Send a raw SmartThings capability command."""
+        data_cmd = _command(
+            {
+                "capability": capability,
+                "command": command,
+            },
+            arguments or [],
+        )
+        await self._async_send_command(
+            data_cmd,
+            force_refresh=force_refresh,
+            refresh_delay=refresh_delay,
+        )
+
     async def async_device_health(self):
         """Check device availability"""
 

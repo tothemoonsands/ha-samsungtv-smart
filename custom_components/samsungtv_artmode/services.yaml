@@ -95,6 +95,51 @@ ip_control_set_artmode:
       selector:
         boolean:
 
+smartthings_get_status:
+  name: Get SmartThings Status
+  description: Read compact SmartThings device states for diagnostics.
+  fields:
+    entity_id:
+      name: Entity Name
+      description: Name of the target entity
+      required: true
+      selector:
+        entity:
+          integration: samsungtv_artmode
+
+smartthings_send_command:
+  name: Send SmartThings Command
+  description: Send a SmartThings capability command for diagnostics.
+  fields:
+    entity_id:
+      name: Entity Name
+      description: Name of the target entity
+      required: true
+      selector:
+        entity:
+          integration: samsungtv_artmode
+    capability:
+      name: Capability
+      description: SmartThings capability name.
+      required: true
+      example: switch
+      selector:
+        text:
+    command:
+      name: Command
+      description: SmartThings command name.
+      required: true
+      example: refresh
+      selector:
+        text:
+    arguments:
+      name: Arguments
+      description: Optional command arguments.
+      required: false
+      example: []
+      selector:
+        object:
+
 art_available:
   name: Get Available Artwork
   description: Get list of all available artwork on the Samsung Frame TV.

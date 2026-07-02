@@ -135,8 +135,13 @@ SERVICE_ART_SET_AUTO_ROTATION = "art_set_auto_rotation"
 SERVICE_IP_CONTROL_PAIR = "ip_control_pair"
 SERVICE_IP_CONTROL_GET_ARTMODE = "ip_control_get_artmode"
 SERVICE_IP_CONTROL_SET_ARTMODE = "ip_control_set_artmode"
+SERVICE_SMARTTHINGS_GET_STATUS = "smartthings_get_status"
+SERVICE_SMARTTHINGS_SEND_COMMAND = "smartthings_send_command"
 
 # Frame Art Service Attributes
+ATTR_ARGUMENTS = "arguments"
+ATTR_CAPABILITY = "capability"
+ATTR_COMMAND = "command"
 ATTR_CONTENT_ID = "content_id"
 ATTR_CATEGORY_ID = "category_id"
 ATTR_FILE_PATH = "file_path"
