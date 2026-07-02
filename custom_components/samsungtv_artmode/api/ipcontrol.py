@@ -83,15 +83,22 @@ class SamsungIPControl:
         return result.get("power", "unknown")
 
     async def async_get_art_mode(self) -> bool | None:
-        """Return whether the panel is displaying Art Mode."""
+        """Return whether the panel is displaying Art Mode.
+
+        Do not call artModeControl without parameters here. It is documented by
+        community reverse engineering as a getter on some firmware, but at
+        least one 2024 Frame panel appears to treat it as a state-changing
+        command. getTVStates is a passive read and reports pictureMode
+        "Ambient" while Art Mode is displayed.
+        """
         if await self.async_get_power_state() == "powerOff":
             return False
 
-        result = await self._async_request("artModeControl")
-        art_mode = result.get("artMode")
-        if art_mode == "artModeOn":
+        result = await self._async_request("getTVStates")
+        picture_mode = result.get("pictureMode")
+        if picture_mode == "Ambient":
             return True
-        if art_mode == "artModeOff":
+        if picture_mode:
             return False
         return None
 

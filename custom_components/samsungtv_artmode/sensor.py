@@ -517,6 +517,17 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                         art_mode_status = state.attributes.get("art_mode_status")
                         if art_mode_status:
                             return art_mode_status
+                        # If the TV media_player is actively on and showing a
+                        # normal source/app, Art Mode is definitely off even if
+                        # the art websocket cannot report status. This keeps
+                        # the sensor from going unknown while watching Apple TV
+                        # on 2024 Frames whose art-app websocket is unreliable.
+                        if state.state == "on":
+                            source = state.attributes.get("source")
+                            app_id = state.attributes.get("app_id")
+                            media_title = state.attributes.get("media_title")
+                            if source or app_id or media_title:
+                                return "off"
                     break
         except Exception as ex:
             _LOGGER.debug("Could not get media_player art_mode_status: %s", ex)
