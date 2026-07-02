@@ -2277,6 +2277,15 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         self._art_brightness_ui = max(0, min(100, tv_brightness * 10))
         return self._art_brightness_ui
 
+    def _update_art_brightness_cache_from_ui(self, ui_brightness: int | None) -> int | None:
+        """Persist an Art brightness value already expressed on the HA 0-100 scale."""
+        if ui_brightness is None:
+            return None
+        ui_brightness = max(0, min(100, int(ui_brightness)))
+        self._art_brightness_ui = ui_brightness
+        self._art_brightness_tv = max(0, min(10, round(ui_brightness / 10)))
+        return self._art_brightness_ui
+
     async def _ensure_frame_tv_check(self) -> bool:
         """Check if Frame TV is supported (cached)."""
         if self._frame_tv_supported is None:
@@ -3145,10 +3154,33 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 tv_brightness = max(1, min(10, round(brightness / 10)))
 
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
+            client = self._get_ip_control_client()
+            if client is not None:
+                try:
+                    requested_backlight = max(0, min(50, round(brightness / 2)))
+                    backlight = await client.async_set_backlight(requested_backlight)
+                    ui_brightness = self._update_art_brightness_cache_from_ui(backlight * 2)
+                    result = {
+                        "service": "art_set_brightness",
+                        "success": True,
+                        "method": "ip_control_backlight",
+                        "brightness_requested_ui": brightness,
+                        "brightness_requested_tv": tv_brightness,
+                        "brightness_requested_backlight": requested_backlight,
+                        "brightness_backlight": backlight,
+                        "brightness_ui": ui_brightness,
+                    }
+                    self._store_art_result(result)
+                    self.async_write_ha_state()
+                    return result
+                except SamsungIPControlError as ex:
+                    _LOGGER.debug("Frame Art IP Control brightness failed: %s", ex)
+
             success = await self._art_api.set_brightness(tv_brightness)
             result = {
                 "service": "art_set_brightness",
                 "success": success,
+                "method": "art_api",
                 "brightness_requested_ui": brightness,
                 "brightness_requested_tv": tv_brightness,
             }
@@ -3173,11 +3205,30 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
         try:
+            client = self._get_ip_control_client()
+            if client is not None:
+                try:
+                    backlight = await client.async_get_backlight()
+                    ui_brightness = self._update_art_brightness_cache_from_ui(backlight * 2)
+                    stored_result = {
+                        "service": "art_get_brightness",
+                        "method": "ip_control_backlight",
+                        "brightness_backlight": backlight,
+                        "brightness_tv": self._art_brightness_tv,
+                        "brightness_ui": ui_brightness,
+                    }
+                    self._store_art_result(stored_result)
+                    self.async_write_ha_state()
+                    return stored_result
+                except SamsungIPControlError as ex:
+                    _LOGGER.debug("Frame Art IP Control brightness read failed: %s", ex)
+
             result = await self._art_api.get_brightness()
             tv_brightness = self._parse_art_brightness(result)
             ui_brightness = self._update_art_brightness_cache(tv_brightness)
             stored_result = {
                 "service": "art_get_brightness",
+                "method": "art_api",
                 "brightness_tv": tv_brightness,
                 "brightness_ui": ui_brightness,
             }

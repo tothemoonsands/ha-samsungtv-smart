@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 8.0.0
+- Add an IP Control backlight fallback for Art Mode brightness reads and writes
+  when the Samsung Art websocket no longer answers brightness requests.
 - Fix the Art Mode switch state mirroring: `switch.artmode_art_mode` now trusts
   the media player/sensor Art Mode status before falling back to the unreliable
   2024 Frame art websocket.

@@ -107,6 +107,33 @@ class SamsungIPControl:
         value = "artModeOn" if enabled else "artModeOff"
         await self._async_request("artModeControl", {"artMode": value})
 
+    async def async_get_backlight(self) -> int:
+        """Return the current panel backlight value."""
+        result = await self._async_request("backlightControl")
+        value = result.get("backlight")
+        if value is None:
+            raise SamsungIPControlError(f"no backlight in response: {result!r}")
+        try:
+            return int(value)
+        except (TypeError, ValueError) as ex:
+            raise SamsungIPControlError(
+                f"invalid backlight response: {result!r}"
+            ) from ex
+
+    async def async_set_backlight(self, value: int) -> int:
+        """Set and return the panel backlight value."""
+        backlight = int(value)
+        if backlight < 0 or backlight > 50:
+            raise SamsungIPControlError("backlight must be between 0 and 50")
+        result = await self._async_request("backlightControl", {"backlight": backlight})
+        response_value = result.get("backlight", backlight)
+        try:
+            return int(response_value)
+        except (TypeError, ValueError) as ex:
+            raise SamsungIPControlError(
+                f"invalid backlight response: {result!r}"
+            ) from ex
+
     async def async_get_device_information(self) -> dict[str, Any]:
         """Return basic TV device information."""
         return await self._async_request("getDeviceInformation")
