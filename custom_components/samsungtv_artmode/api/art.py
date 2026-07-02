@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import ssl
+import time
 from typing import Any
 import uuid
 
@@ -71,6 +72,7 @@ class SamsungTVAsyncArt:
         session: aiohttp.ClientSession | None = None,
         timeout: int = 5,
         name: str = "HomeAssistant",
+        supports_get_brightness: bool | None = None,
     ) -> None:
         """Initialize the Art API."""
         self._host = host
@@ -93,6 +95,12 @@ class SamsungTVAsyncArt:
         self._recv_task: asyncio.Task | None = None
         self._connected = False
         self._ws_lifecycle_lock = asyncio.Lock()
+        self._artmode_settings_cache: list | None = None
+        self._artmode_settings_cache_ts: float = 0.0
+        self._artmode_settings_cache_ttl: float = 1.5
+        self._artmode_settings_lock = asyncio.Lock()
+        self._supports_get_brightness: bool | None = supports_get_brightness
+        self._capability_callback = None
 
     def _get_uuid(self) -> str:
         """Generate a new UUID for art requests."""
@@ -103,11 +111,10 @@ class SamsungTVAsyncArt:
         """Get the WebSocket URL for the art API."""
         scheme = "wss" if port == 8002 else "ws"
         name = _serialize_string(self._name)
-        token_part = (
-            f"&token={self._token}"
-            if include_token and self._token and port == 8002
-            else ""
-        )
+        # The art-app channel is unauthenticated on newer Frame firmware. Adding
+        # the remote-control token can make the TV report "No Authorized" and
+        # never answer Art API requests.
+        token_part = ""
         return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}{token_part}"
 
     def _get_candidate_connections(self) -> list[tuple[int, bool]]:
@@ -121,12 +128,16 @@ class SamsungTVAsyncArt:
         candidates: list[tuple[int, bool]] = []
         for port in ports:
             candidates.append((port, False))
-            if port == 8002 and self._token:
-                # Some newer Frames prefer tokenless art-app connections, but
-                # others connect tokenless and then never answer art requests.
-                # Keep both paths and let the handshake/request behavior decide.
-                candidates.append((port, True))
         return candidates
+
+    def register_capability_callback(self, func) -> None:
+        """Register a callback fired when a get-capability is first learned."""
+        self._capability_callback = func
+
+    def _learn_capability(self, flag_name: str, value: bool) -> None:
+        """Notify the caller that a capability has been determined."""
+        if self._capability_callback is not None:
+            self._capability_callback(flag_name, value)
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -188,12 +199,10 @@ class SamsungTVAsyncArt:
                                 if event == MS_CHANNEL_READY_EVENT:
                                     connected = True
                                     break
-                                if event == MS_CHANNEL_CONNECT_EVENT and include_token:
-                                    # Older working path: authenticated 8002
-                                    # often sends connect without a separate
-                                    # ready event, but still answers art-app
-                                    # requests. Tokenless connect alone is not
-                                    # sufficient on at least one 2024 Frame.
+                                if event == MS_CHANNEL_CONNECT_EVENT:
+                                    # 2024+ Frame firmware often sends connect
+                                    # without a separate ready event on the
+                                    # tokenless art-app channel.
                                     connected = True
                                     break
                             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
@@ -1034,25 +1043,61 @@ class SamsungTVAsyncArt:
 
     async def get_artmode_settings(self, setting: str = "") -> dict | list | None:
         """Get art mode settings."""
-        data = await self._send_art_request({"request": "get_artmode_settings"})
-        if data:
-            settings_data = data.get("data", "[]")
-            if isinstance(settings_data, str):
-                try:
-                    settings_data = json.loads(settings_data)
-                except json.JSONDecodeError:
+        async with self._artmode_settings_lock:
+            now = time.time()
+            cached = self._artmode_settings_cache
+            cache_fresh = (
+                cached is not None
+                and (now - self._artmode_settings_cache_ts)
+                < self._artmode_settings_cache_ttl
+            )
+            if cache_fresh:
+                settings_data = cached
+            else:
+                data = await self._send_art_request({"request": "get_artmode_settings"})
+                if not data:
                     return None
-            if setting:
-                return next((item for item in settings_data if item.get("item") == setting), None)
-            return settings_data
-        return None
+                settings_data = data.get("data", "[]")
+                if isinstance(settings_data, str):
+                    try:
+                        settings_data = json.loads(settings_data)
+                    except json.JSONDecodeError:
+                        return None
+                if isinstance(settings_data, list):
+                    self._artmode_settings_cache = settings_data
+                    self._artmode_settings_cache_ts = now
+
+        if setting:
+            if not isinstance(settings_data, list):
+                return None
+            return next((item for item in settings_data if item.get("item") == setting), None)
+        return settings_data
+
+    def _invalidate_artmode_settings_cache(self) -> None:
+        """Drop cached Art Mode settings after a set operation."""
+        self._artmode_settings_cache = None
+        self._artmode_settings_cache_ts = 0.0
 
     async def get_brightness(self) -> dict | None:
         """Get current art mode brightness."""
-        data = await self._send_art_request({"request": "get_brightness"}, timeout=1.0)
-        if not data or _is_error_response(data):
-            data = await self.get_artmode_settings("brightness")
-        return data
+        if self._supports_get_brightness is not False:
+            data = await self._send_art_request(
+                {"request": "get_brightness"},
+                timeout=1.0 if self._supports_get_brightness is None else 2.0,
+            )
+            if data and not _is_error_response(data):
+                if self._supports_get_brightness is None:
+                    self._supports_get_brightness = True
+                    self._learn_capability("brightness", True)
+                return data
+            if self._supports_get_brightness is None and self._connected:
+                _LOGGER.info(
+                    "Art API: TV did not respond to get_brightness; using get_artmode_settings"
+                )
+                self._supports_get_brightness = False
+                self._learn_capability("brightness", False)
+
+        return await self.get_artmode_settings("brightness")
 
     async def set_brightness(self, value: int) -> bool:
         """Set art mode brightness."""
@@ -1060,6 +1105,8 @@ class SamsungTVAsyncArt:
             "request": "set_brightness",
             "value": value,
         })
+        if data is not None and not _is_error_response(data):
+            self._invalidate_artmode_settings_cache()
         return data is not None and not _is_error_response(data)
 
     async def get_color_temperature(self) -> dict | None:

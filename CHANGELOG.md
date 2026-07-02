@@ -1,5 +1,14 @@
 # Changelog
 
+## 9.1.0
+- Restore upstream's tokenless Art websocket behavior for newer Frame firmware:
+  accept `ms.channel.connect` on the Art channel and stop trying the remote
+  websocket token, which can return `No Authorized`.
+- Learn when a TV does not answer the dedicated `get_brightness` request and
+  use `get_artmode_settings` directly on later reads.
+- Track the TV's native Art brightness range from settings payloads so HA can
+  map models that report `0..50` instead of the older `0..10` scale.
+
 ## 9.0.0
 - Restore authenticated secure Art websocket fallback for Frames that connect
   tokenless but never answer Art API requests. Tokenless connections must now

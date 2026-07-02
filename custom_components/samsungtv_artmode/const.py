@@ -37,6 +37,7 @@ DATA_CFG = "cfg"
 DATA_CFG_YAML = "cfg_yaml"
 DATA_OPTIONS = "options"
 DATA_ART_API = "art_api"  # Shared Frame Art API instance
+CONF_SUPPORTS_GET_BRIGHTNESS = "supports_get_brightness"
 LOCAL_LOGO_PATH = "local_logo_path"
 WS_PREFIX = "[Home Assistant]"
 

@@ -105,6 +105,7 @@ from .const import (
     CONF_SHOW_CHANNEL_NR,
     CONF_SOURCE_LIST,
     CONF_ST_ENTRY_UNIQUE_ID,
+    CONF_SUPPORTS_GET_BRIGHTNESS,
     CONF_SYNC_TURN_OFF,
     CONF_SYNC_TURN_ON,
     CONF_TOGGLE_ART_MODE,
@@ -540,15 +541,18 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 session=session,
                 timeout=DEFAULT_TIMEOUT,
                 name=f"{WS_PREFIX} {ws_name} Art",
+                supports_get_brightness=config.get(CONF_SUPPORTS_GET_BRIGHTNESS),
             )
             if entry_data is not None:
                 entry_data[DATA_ART_API] = self._art_api
             _LOGGER.debug("Created and registered shared Frame Art API instance")
         self._ws.disable_art_thread()
+        self._art_api.register_capability_callback(self._persist_art_capability)
         self._frame_tv_supported: bool | None = None
         self._frame_art_last_result: dict | None = None
         self._art_brightness_tv: int | None = None
         self._art_brightness_ui: int | None = None
+        self._art_brightness_tv_max: int = 10
         self._ip_control_client: SamsungIPControl | None = None
         self._ip_control_token_cached: str | None = None
         self._ip_art_mode: bool | None = None
@@ -622,6 +626,18 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
 
         # update config options for first time
         self._update_config_options(True)
+
+    @callback
+    def _persist_art_capability(self, flag_name: str, value: bool) -> None:
+        """Persist learned Art API capabilities to avoid repeated dead probes."""
+        if flag_name != "brightness":
+            return
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.data.get(CONF_SUPPORTS_GET_BRIGHTNESS) == value:
+            return
+        self.hass.config_entries.async_update_entry(
+            entry, data={**entry.data, CONF_SUPPORTS_GET_BRIGHTNESS: value}
+        )
 
     @Throttle(ST_API_KEY_UPDATE_INTERVAL)
     @callback
@@ -1560,6 +1576,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             data[ATTR_BRIGHTNESS] = self._art_brightness_ui
         if self._art_brightness_tv is not None:
             data["art_brightness_tv"] = self._art_brightness_tv
+            data["art_brightness_tv_max"] = self._art_brightness_tv_max
         if self._st:
             picture_mode = self._st.picture_mode
             picture_mode_list = self._st.picture_mode_list
@@ -2248,11 +2265,14 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 if not isinstance(item, dict):
                     continue
                 if item.get("item") == "brightness" or item.get("id") == "brightness":
+                    self._update_art_brightness_range(item)
                     tv_brightness = item.get("value")
                     if tv_brightness is None:
                         tv_brightness = item.get("brightness")
                     break
         if isinstance(result, dict):
+            if result.get("item") == "brightness" or result.get("id") == "brightness":
+                self._update_art_brightness_range(result)
             tv_brightness = result.get("value")
             if tv_brightness is None:
                 tv_brightness = result.get("brightness")
@@ -2288,12 +2308,41 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return tv_brightness
         return None
 
+    def _update_art_brightness_range(self, result: dict[str, Any]) -> None:
+        """Learn the TV's native Art brightness range from settings payloads."""
+        max_value = result.get("max") or result.get("maximum")
+        if max_value is None:
+            return
+        try:
+            parsed_max = int(max_value)
+        except (TypeError, ValueError):
+            return
+        if parsed_max > 0:
+            self._art_brightness_tv_max = parsed_max
+
+    def _art_brightness_tv_to_ui(self, tv_brightness: int) -> int:
+        """Convert the TV's native Art brightness scale to HA's 0-100 scale."""
+        max_value = max(1, self._art_brightness_tv_max)
+        if max_value <= 10:
+            return max(0, min(100, tv_brightness * 10))
+        return max(0, min(100, round((tv_brightness / max_value) * 100)))
+
+    def _art_brightness_ui_to_tv(self, ui_brightness: int) -> int:
+        """Convert HA's 0-100 Art brightness scale to the TV's native scale."""
+        ui_brightness = max(0, min(100, int(ui_brightness)))
+        max_value = max(1, self._art_brightness_tv_max)
+        if ui_brightness == 0:
+            return 0
+        if max_value <= 10:
+            return max(1, min(max_value, round(ui_brightness / 10)))
+        return max(1, min(max_value, round((ui_brightness / 100) * max_value)))
+
     def _update_art_brightness_cache(self, tv_brightness: int | None) -> int | None:
         """Persist the last known art brightness for entity attributes."""
         if tv_brightness is None:
             return None
         self._art_brightness_tv = tv_brightness
-        self._art_brightness_ui = max(0, min(100, tv_brightness * 10))
+        self._art_brightness_ui = self._art_brightness_tv_to_ui(tv_brightness)
         return self._art_brightness_ui
 
     def _update_art_brightness_cache_from_ui(self, ui_brightness: int | None) -> int | None:
@@ -2302,7 +2351,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return None
         ui_brightness = max(0, min(100, int(ui_brightness)))
         self._art_brightness_ui = ui_brightness
-        self._art_brightness_tv = max(0, min(10, round(ui_brightness / 10)))
+        self._art_brightness_tv = self._art_brightness_ui_to_tv(ui_brightness)
         return self._art_brightness_ui
 
     async def _ensure_frame_tv_check(self) -> bool:
@@ -3260,14 +3309,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return {"error": "Failed to turn on TV"}
         
         try:
-            # Convert 0-100 scale to 1-10 scale for the TV API
-            # 0-10 -> 1, 11-20 -> 2, ..., 91-100 -> 10
-            tv_brightness = max(1, min(10, (brightness // 10) + (1 if brightness % 10 > 0 or brightness == 0 else 0)))
-            # Simpler: map 0->1, 10->1, 20->2, ..., 100->10
-            if brightness == 0:
-                tv_brightness = 0
-            else:
-                tv_brightness = max(1, min(10, round(brightness / 10)))
+            tv_brightness = self._art_brightness_ui_to_tv(brightness)
 
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
             success = await self._art_api.set_brightness(tv_brightness)

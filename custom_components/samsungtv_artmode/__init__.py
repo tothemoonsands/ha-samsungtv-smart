@@ -61,6 +61,7 @@ from .const import (
     CONF_SHOW_CHANNEL_NR,
     CONF_SOURCE_LIST,
     CONF_ST_ENTRY_UNIQUE_ID,
+    CONF_SUPPORTS_GET_BRIGHTNESS,
     CONF_SYNC_TURN_OFF,
     CONF_SYNC_TURN_ON,
     CONF_UPDATE_CUSTOM_PING_URL,
@@ -892,6 +893,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=async_get_clientsession(hass),
         timeout=DEFAULT_TIMEOUT,
         name=f"{WS_PREFIX} {config.get(CONF_WS_NAME, 'HomeAssistant')} Art",
+        supports_get_brightness=entry.data.get(CONF_SUPPORTS_GET_BRIGHTNESS),
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, SAMSMART_PLATFORM)
