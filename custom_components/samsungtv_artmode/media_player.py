@@ -1694,18 +1694,27 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         """Turn the media player on."""
         cmd_power_on = "KEY_POWER"
         cmd_power_art = "KEY_POWER"
+        known_art_mode = self._art_mode_is_on()
         if set_art_mode:
-            if self._ws.artmode_status == ArtModeStatus.Off:
+            if self._ws.artmode_status == ArtModeStatus.Off or known_art_mode is False:
                 # art mode from on
                 await self.async_send_command(cmd_power_art)
                 self._state = MediaPlayerState.OFF
                 return True
 
-        if self._ws.artmode_status == ArtModeStatus.On:
+        if self._ws.artmode_status == ArtModeStatus.On or known_art_mode is True:
             if set_art_mode:
                 return False
             # power on from art mode
-            await self.async_send_command(cmd_power_art)
+            if await self.async_send_command(cmd_power_art):
+                self._ip_art_mode = False
+                art_api = (
+                    self.hass.data.get(DOMAIN, {})
+                    .get(self._entry_id, {})
+                    .get(DATA_ART_API)
+                ) or self._art_api
+                if art_api is not None:
+                    art_api.art_mode = False
             return True
 
         if self.state != MediaPlayerState.OFF:
@@ -2302,6 +2311,18 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return result
         try:
             fallback_used = False
+            known_art_mode = self._art_mode_is_on()
+            if known_art_mode is not None and known_art_mode == enabled:
+                result = {
+                    "service": "art_set_artmode",
+                    "success": True,
+                    "enabled": enabled,
+                    "already_set": True,
+                    "fallback": None,
+                }
+                self._store_art_result(result)
+                return result
+
             try:
                 success = await self._art_api.set_artmode(enabled)
             except Exception as art_ex:
@@ -2430,6 +2451,11 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         Returns:
             bool: True if TV is ready in Art Mode, False if failed
         """
+        known_art_mode = self._art_mode_is_on()
+        if known_art_mode is True:
+            _LOGGER.debug("Frame Art: Art Mode already active from known state")
+            return True
+
         # Check if TV is off, turn it on if needed
         if self.state == MediaPlayerState.OFF:
             _LOGGER.info("Frame Art: TV is off, turning it on first...")
