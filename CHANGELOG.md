@@ -1,5 +1,13 @@
 # Changelog
 
+## 8.0.1
+- Stop using Samsung IP Control `backlightControl` as an Art Mode brightness
+  fallback. On newer Frame TVs it can report/update panel backlight while the
+  actual Art Mode brightness remains unchanged, causing false HA success states.
+- Add SmartThings diagnostic services for reading exposed device states and
+  testing explicit capability commands while investigating the new Art Mode
+  brightness API path.
+
 ## 8.0.0
 - Add an IP Control backlight fallback for Art Mode brightness reads and writes
   when the Samsung Art websocket no longer answers brightness requests.
