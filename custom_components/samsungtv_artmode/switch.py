@@ -241,6 +241,33 @@ class FrameArtModeSwitch(SwitchEntity):
             _LOGGER.error("Failed to turn on TV: %s", ex)
             return False
 
+    async def _set_artmode_via_media_player_service(self, enabled: bool) -> bool:
+        """Ask the media_player entity to set Art Mode, including its fallbacks."""
+        entity_id = self._get_media_player_entity_id()
+        if not entity_id:
+            return False
+        try:
+            await self._hass.services.async_call(
+                DOMAIN,
+                "art_set_artmode",
+                {"entity_id": entity_id, "enabled": enabled},
+                blocking=True,
+            )
+            state = self._hass.states.get(entity_id)
+            result = (state.attributes.get("frame_art_last_result") if state else None)
+            return bool(
+                isinstance(result, dict)
+                and result.get("service") == "art_set_artmode"
+                and result.get("success")
+            )
+        except Exception as ex:
+            _LOGGER.debug(
+                "Art Mode media_player fallback failed for %s: %s",
+                self._device_name,
+                ex,
+            )
+            return False
+
     async def _wait_for_tv_ready(self, max_wait: int = 15) -> bool:
         """Wait for TV to be ready after turning on."""
         _LOGGER.debug("Waiting for TV to be ready (max %ds)...", max_wait)
@@ -324,6 +351,16 @@ class FrameArtModeSwitch(SwitchEntity):
                     retry_delay *= 2
         
         # All retries failed
+        if await self._set_artmode_via_media_player_service(True):
+            self._attr_is_on = True
+            self._available = True
+            self.async_write_ha_state()
+            _LOGGER.info(
+                "Art Mode turned ON for %s via media_player fallback",
+                self._device_name,
+            )
+            return
+
         _LOGGER.warning("Failed to turn Art Mode ON for %s after %d attempts", self._device_name, max_retries)
         self.async_write_ha_state()
 
@@ -378,6 +415,16 @@ class FrameArtModeSwitch(SwitchEntity):
                     retry_delay *= 2
         
         # All retries failed
+        if await self._set_artmode_via_media_player_service(False):
+            self._attr_is_on = False
+            self._available = True
+            self.async_write_ha_state()
+            _LOGGER.info(
+                "Art Mode turned OFF for %s via media_player fallback",
+                self._device_name,
+            )
+            return
+
         _LOGGER.warning("Failed to turn Art Mode OFF for %s after %d attempts", self._device_name, max_retries)
         self.async_write_ha_state()
 

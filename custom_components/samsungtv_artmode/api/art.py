@@ -35,6 +35,7 @@ D2D_SERVICE_MESSAGE_EVENT = "d2d_service_message"
 MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
 MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_READY_EVENT = "ms.channel.ready"
+MS_ERROR_EVENT = "ms.error"
 ART_WS_HEARTBEAT = 20
 
 
@@ -51,6 +52,13 @@ def _serialize_string(string: str | bytes) -> str:
     if isinstance(string, str):
         string = string.encode()
     return base64.b64encode(string).decode("utf-8")
+
+
+def _is_error_response(data: dict[str, Any] | None) -> bool:
+    """Return True when an art-app response is a Samsung error."""
+    if not data:
+        return False
+    return data.get("event") in (MS_ERROR_EVENT, "error")
 
 
 class SamsungTVAsyncArt:
@@ -277,7 +285,16 @@ class SamsungTVAsyncArt:
     async def _process_event(self, event: str, response: dict) -> None:
         """Process incoming WebSocket events."""
         _LOGGER.debug("Art API: Received event '%s'", event)
-        
+
+        if event == MS_ERROR_EVENT:
+            _LOGGER.debug("Art API: Samsung channel error: %s", response.get("data"))
+            for future in self._pending_requests.values():
+                if not future.done():
+                    future.set_result(response)
+            self._pending_requests.clear()
+            self._connected = False
+            return
+
         if event != D2D_SERVICE_MESSAGE_EVENT:
             return
             
@@ -862,8 +879,13 @@ class SamsungTVAsyncArt:
 
     async def get_artmode(self) -> str | None:
         """Get current art mode status."""
-        data = await self._send_art_request({"request": "get_artmode_status"})
+        data = await self._send_art_request(
+            {"request": "get_artmode_status"},
+            wait_for_event="artmode_status",
+        )
         if data:
+            if data.get("event") == MS_ERROR_EVENT:
+                return None
             value = data.get("value")
             self.art_mode = value == "on"
             return value
@@ -889,13 +911,19 @@ class SamsungTVAsyncArt:
                 {request_task, broadcast_future},
                 return_when=asyncio.FIRST_COMPLETED,
             )
-            if request_task in done and request_task.result() is not None:
+            if (
+                request_task in done
+                and request_task.result() is not None
+                and not _is_error_response(request_task.result())
+            ):
                 return True
             if self.art_mode == desired:
                 return True
             if request_task not in done:
                 await request_task
-                if request_task.result() is not None:
+                if request_task.result() is not None and not _is_error_response(
+                    request_task.result()
+                ):
                     return True
         finally:
             if broadcast_future in self._art_mode_broadcast_waiters:

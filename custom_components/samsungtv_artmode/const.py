@@ -24,6 +24,7 @@ class PowerOnMethod(Enum):
 
     WOL = 1
     SmartThings = 2
+    IPControl = 3
 
 
 DOMAIN = "samsungtv_artmode"
@@ -79,6 +80,12 @@ CONF_DEVICE_ID = "device_id"
 CONF_AUTH_METHOD = "auth_method"
 CONF_OAUTH_TOKEN = "oauth_token"
 
+# Samsung IP Control (JSON-RPC on port 1516). This is a separate Samsung
+# interface that can explicitly enter/exit Art Mode on 2024+ Frame TVs when the
+# art-app websocket refuses commands.
+CONF_IP_CONTROL_TOKEN = "ip_control_token"
+CONF_ENABLE_IP_CONTROL = "enable_ip_control"
+
 # Authentication methods
 AUTH_METHOD_OAUTH = "oauth"
 AUTH_METHOD_PAT = "pat"
@@ -125,6 +132,9 @@ SERVICE_ART_GET_MATTE_LIST = "art_get_matte_list"
 SERVICE_ART_SET_FAVOURITE = "art_set_favourite"
 SERVICE_ART_SET_SLIDESHOW = "art_set_slideshow"
 SERVICE_ART_SET_AUTO_ROTATION = "art_set_auto_rotation"
+SERVICE_IP_CONTROL_PAIR = "ip_control_pair"
+SERVICE_IP_CONTROL_GET_ARTMODE = "ip_control_get_artmode"
+SERVICE_IP_CONTROL_SET_ARTMODE = "ip_control_set_artmode"
 
 # Frame Art Service Attributes
 ATTR_CONTENT_ID = "content_id"

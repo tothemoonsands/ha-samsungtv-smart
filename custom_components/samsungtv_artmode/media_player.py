@@ -65,6 +65,11 @@ from .api.samsungws import ArtModeStatus, SamsungTVAsyncRest, SamsungTVWS
 from .api.smartthings import SmartThingsTV, STStatus
 from .api.upnp import SamsungUPnP
 from .api.art import SamsungTVAsyncArt
+from .api.ipcontrol import (
+    SamsungIPControl,
+    SamsungIPControlAuthError,
+    SamsungIPControlError,
+)
 from .const import (
     ATTR_BRIGHTNESS,
     ATTR_CATEGORY_ID,
@@ -88,6 +93,8 @@ from .const import (
     CONF_CHANNEL_LIST,
     CONF_DUMP_APPS,
     CONF_EXT_POWER_ENTITY,
+    CONF_ENABLE_IP_CONTROL,
+    CONF_IP_CONTROL_TOKEN,
     CONF_LOGO_OPTION,
     CONF_OAUTH_TOKEN,
     CONF_PING_PORT,
@@ -132,6 +139,9 @@ from .const import (
     SERVICE_ART_SET_PHOTO_FILTER,
     SERVICE_ART_SET_SLIDESHOW,
     SERVICE_ART_UPLOAD,
+    SERVICE_IP_CONTROL_GET_ARTMODE,
+    SERVICE_IP_CONTROL_PAIR,
+    SERVICE_IP_CONTROL_SET_ARTMODE,
     SERVICE_SELECT_PICTURE_MODE,
     SIGNAL_CONFIG_ENTITY,
     STD_APP_LIST,
@@ -248,6 +258,21 @@ async def async_setup_entry(
         SERVICE_ART_SET_ARTMODE,
         {vol.Required(ATTR_ENABLED): cv.boolean},
         "async_art_set_artmode",
+    )
+    platform.async_register_entity_service(
+        SERVICE_IP_CONTROL_PAIR,
+        {},
+        "async_ip_control_pair",
+    )
+    platform.async_register_entity_service(
+        SERVICE_IP_CONTROL_GET_ARTMODE,
+        {},
+        "async_ip_control_get_artmode",
+    )
+    platform.async_register_entity_service(
+        SERVICE_IP_CONTROL_SET_ARTMODE,
+        {vol.Required(ATTR_ENABLED): cv.boolean},
+        "async_ip_control_set_artmode",
     )
     platform.async_register_entity_service(
         SERVICE_ART_AVAILABLE,
@@ -505,6 +530,9 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         self._frame_art_last_result: dict | None = None
         self._art_brightness_tv: int | None = None
         self._art_brightness_ui: int | None = None
+        self._ip_control_client: SamsungIPControl | None = None
+        self._ip_control_token_cached: str | None = None
+        self._ip_art_mode: bool | None = None
 
         # upnp initialization
         self._upnp = SamsungUPnP(host=self._host, session=session)
@@ -1440,6 +1468,43 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return False
         return (self._st.channel_name or "").lower() == "art"
 
+    def _get_ip_control_client(self) -> SamsungIPControl | None:
+        """Return a paired IP Control client, if available and enabled."""
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        token = entry.data.get(CONF_IP_CONTROL_TOKEN) if entry else None
+        if not token:
+            return None
+        if not self._get_option(CONF_ENABLE_IP_CONTROL, True):
+            return None
+        if self._ip_control_client is None or self._ip_control_token_cached != token:
+            self._ip_control_client = SamsungIPControl(
+                self.hass,
+                self._host,
+                token=token,
+            )
+            self._ip_control_token_cached = token
+        return self._ip_control_client
+
+    async def _async_ip_control_set_artmode(self, enabled: bool) -> bool:
+        """Set Art Mode using Samsung IP Control when paired."""
+        client = self._get_ip_control_client()
+        if client is None:
+            return False
+        try:
+            if enabled and await client.async_get_power_state() == "powerOff":
+                await client.async_power_on()
+                await asyncio.sleep(3)
+            await client.async_set_art_mode(enabled)
+            await asyncio.sleep(1)
+            self._ip_art_mode = enabled
+            self.async_write_ha_state()
+            return True
+        except SamsungIPControlAuthError as ex:
+            _LOGGER.warning("IP Control token rejected for %s: %s", self._host, ex)
+        except SamsungIPControlError as ex:
+            _LOGGER.debug("IP Control Art Mode command failed for %s: %s", self._host, ex)
+        return False
+
     def _art_mode_is_on(self) -> bool | None:
         """Return the best available Art Mode status."""
         # A visible foreground app means the panel is showing that app, not art.
@@ -1449,6 +1514,8 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             return False
         if self._st is not None and self._st.state == STStatus.STATE_OFF:
             return False
+        if self._ip_art_mode is not None:
+            return self._ip_art_mode
 
         art_api = (
             self.hass.data.get(DOMAIN, {}).get(self._entry_id, {}).get(DATA_ART_API)
@@ -2215,18 +2282,90 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
         try:
-            success = await self._art_api.set_artmode(enabled)
+            fallback_used = False
+            try:
+                success = await self._art_api.set_artmode(enabled)
+            except Exception as art_ex:
+                _LOGGER.debug("Frame Art websocket set_artmode failed: %s", art_ex)
+                success = False
+
+            if not success:
+                success = await self._async_ip_control_set_artmode(enabled)
+                fallback_used = success
             result = {
                 "service": "art_set_artmode",
                 "success": success,
                 "enabled": enabled,
+                "fallback": "ip_control" if fallback_used else None,
             }
             self._store_art_result(result)
             return result
         except Exception as ex:
-            result = {"service": "art_set_artmode", "error": str(ex)}
+            result = {"service": "art_set_artmode", "success": False, "error": str(ex)}
             self._store_art_result(result)
             return result
+
+    async def async_ip_control_pair(self) -> dict:
+        """Pair Samsung IP Control and persist the access token."""
+        try:
+            client = SamsungIPControl(self.hass, self._host)
+            token = await client.async_pair()
+            entry = self.hass.config_entries.async_get_entry(self._entry_id)
+            if entry is None:
+                raise SamsungIPControlError("config entry not found")
+            self.hass.config_entries.async_update_entry(
+                entry,
+                data={**entry.data, CONF_IP_CONTROL_TOKEN: token},
+            )
+            self._ip_control_client = client
+            self._ip_control_token_cached = token
+            result = {"service": "ip_control_pair", "success": True}
+        except Exception as ex:
+            result = {"service": "ip_control_pair", "success": False, "error": str(ex)}
+        self._store_art_result(result)
+        return result
+
+    async def async_ip_control_get_artmode(self) -> dict:
+        """Get Art Mode status through Samsung IP Control."""
+        client = self._get_ip_control_client()
+        if client is None:
+            result = {
+                "service": "ip_control_get_artmode",
+                "success": False,
+                "error": "IP Control is not paired",
+            }
+            self._store_art_result(result)
+            return result
+        try:
+            status = await client.async_get_art_mode()
+            self._ip_art_mode = status
+            result = {
+                "service": "ip_control_get_artmode",
+                "success": True,
+                "status": STATE_ON if status else STATE_OFF if status is False else None,
+            }
+        except Exception as ex:
+            result = {
+                "service": "ip_control_get_artmode",
+                "success": False,
+                "error": str(ex),
+            }
+        self._store_art_result(result)
+        self.async_write_ha_state()
+        return result
+
+    async def async_ip_control_set_artmode(self, enabled: bool) -> dict:
+        """Set Art Mode through Samsung IP Control."""
+        success = await self._async_ip_control_set_artmode(enabled)
+        result = {
+            "service": "ip_control_set_artmode",
+            "success": success,
+            "enabled": enabled,
+        }
+        if not success and self._get_ip_control_client() is None:
+            result["error"] = "IP Control is not paired"
+        self._store_art_result(result)
+        return result
 
     async def async_art_available(self, category_id: str | None = None) -> dict:
         """Get list of available artwork on the TV."""

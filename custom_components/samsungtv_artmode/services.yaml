@@ -52,6 +52,49 @@ art_set_artmode:
       selector:
         boolean:
 
+ip_control_pair:
+  name: Pair IP Control
+  description: Pair the Samsung IP Control interface. The TV must be on, in normal viewing, and IP Remote must be enabled.
+  fields:
+    entity_id:
+      name: Entity Name
+      description: Name of the target entity
+      required: true
+      selector:
+        entity:
+          integration: samsungtv_artmode
+
+ip_control_get_artmode:
+  name: Get IP Control Art Mode
+  description: Get Art Mode status through Samsung IP Control.
+  fields:
+    entity_id:
+      name: Entity Name
+      description: Name of the target entity
+      required: true
+      selector:
+        entity:
+          integration: samsungtv_artmode
+
+ip_control_set_artmode:
+  name: Set IP Control Art Mode
+  description: Enable or disable Art Mode through Samsung IP Control.
+  fields:
+    entity_id:
+      name: Entity Name
+      description: Name of the target entity
+      required: true
+      selector:
+        entity:
+          integration: samsungtv_artmode
+    enabled:
+      name: Enabled
+      description: True to enable Art Mode, False to disable
+      required: true
+      example: true
+      selector:
+        boolean:
+
 art_available:
   name: Get Available Artwork
   description: Get list of all available artwork on the Samsung Frame TV.
@@ -481,4 +524,3 @@ art_set_auto_rotation:
           min: 2
           max: 8
           step: 2
-

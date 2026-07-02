@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from unittest.mock import AsyncMock, MagicMock
@@ -10,8 +11,10 @@ import aiohttp
 import pytest
 
 from custom_components.samsungtv_artmode.api.art import (
+    D2D_SERVICE_MESSAGE_EVENT,
     MS_CHANNEL_CONNECT_EVENT,
     MS_CHANNEL_READY_EVENT,
+    MS_ERROR_EVENT,
     SamsungTVAsyncArt,
 )
 
@@ -103,3 +106,53 @@ async def test_open_logs_one_warning_after_all_ports_fail(
     warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
     assert len(warnings) == 1
     assert "trying ports [8002, 8001]" in warnings[0]
+
+
+@pytest.mark.asyncio
+async def test_get_artmode_matches_artmode_status_event() -> None:
+    """get_artmode_status replies are keyed by event name on some TVs."""
+    ws = MagicMock(closed=False)
+    ws.send_json = AsyncMock()
+
+    art = SamsungTVAsyncArt("192.168.1.38")
+    art._connected = True
+    art._ws = ws
+
+    task = asyncio.create_task(art.get_artmode())
+    await asyncio.sleep(0)
+
+    await art._process_event(
+        D2D_SERVICE_MESSAGE_EVENT,
+        {
+            "data": json.dumps(
+                {
+                    "event": "artmode_status",
+                    "value": "on",
+                }
+            )
+        },
+    )
+
+    assert await task == "on"
+    assert art.art_mode is True
+
+
+@pytest.mark.asyncio
+async def test_set_artmode_does_not_treat_ms_error_as_success() -> None:
+    """Samsung channel errors should unblock the call but still fail."""
+    ws = MagicMock(closed=False)
+    ws.send_json = AsyncMock()
+
+    art = SamsungTVAsyncArt("192.168.1.38")
+    art._connected = True
+    art._ws = ws
+
+    task = asyncio.create_task(art.set_artmode(True))
+    await asyncio.sleep(0)
+
+    await art._process_event(
+        MS_ERROR_EVENT,
+        {"event": MS_ERROR_EVENT, "data": {"message": "can't find which Channel I'm in"}},
+    )
+
+    assert await task is False
