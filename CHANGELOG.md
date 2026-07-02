@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.0.0
+- Restore authenticated secure Art websocket fallback for Frames that connect
+  tokenless but never answer Art API requests. Tokenless connections must now
+  reach `ms.channel.ready`; authenticated `8002` can use the older
+  `ms.channel.connect`-only behavior that previously worked for brightness.
+
 ## 8.0.2
 - Fix Art websocket handshakes by ignoring `ms.channel.clientConnect` as a
   successful Art API connection. Only `ms.channel.connect` and

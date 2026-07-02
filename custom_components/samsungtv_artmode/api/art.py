@@ -99,23 +99,34 @@ class SamsungTVAsyncArt:
         self._art_uuid = str(uuid.uuid4())
         return self._art_uuid
 
-    def _get_ws_url(self, port: int) -> str:
+    def _get_ws_url(self, port: int, *, include_token: bool = False) -> str:
         """Get the WebSocket URL for the art API."""
         scheme = "wss" if port == 8002 else "ws"
         name = _serialize_string(self._name)
-        # The art-app channel is separate from the remote-control channel. Newer
-        # Frame TVs can reject or stall art-app handshakes when the remote token
-        # is included, so keep this connection tokenless.
-        return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}"
+        token_part = (
+            f"&token={self._token}"
+            if include_token and self._token and port == 8002
+            else ""
+        )
+        return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}{token_part}"
 
-    def _get_candidate_ports(self) -> list[int]:
-        """Return the ports to try for the art websocket."""
+    def _get_candidate_connections(self) -> list[tuple[int, bool]]:
+        """Return the port/token combinations to try for the art websocket."""
         ports = [self._port]
         if self._port == 8001:
             ports.append(8002)
         elif self._port == 8002:
             ports.append(8001)
-        return ports
+
+        candidates: list[tuple[int, bool]] = []
+        for port in ports:
+            candidates.append((port, False))
+            if port == 8002 and self._token:
+                # Some newer Frames prefer tokenless art-app connections, but
+                # others connect tokenless and then never answer art requests.
+                # Keep both paths and let the handshake/request behavior decide.
+                candidates.append((port, True))
+        return candidates
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -142,16 +153,20 @@ class SamsungTVAsyncArt:
                 self._recv_task = None
 
             session = await self._get_session()
-            candidate_ports = self._get_candidate_ports()
+            candidates = self._get_candidate_connections()
             connection_errors: list[str] = []
 
-            for index, port in enumerate(candidate_ports):
+            for index, (port, include_token) in enumerate(candidates):
                 ws: aiohttp.ClientWebSocketResponse | None = None
-                ws_url = self._get_ws_url(port)
+                ws_url = self._get_ws_url(port, include_token=include_token)
                 try:
                     ssl_context = _get_ssl_context() if port == 8002 else None
 
-                    _LOGGER.debug("Art API: Connecting to %s", ws_url)
+                    _LOGGER.debug(
+                        "Art API: Connecting to %s%s",
+                        ws_url.split("&token=", 1)[0],
+                        " with token" if include_token else "",
+                    )
 
                     ws = await session.ws_connect(
                         ws_url,
@@ -170,10 +185,15 @@ class SamsungTVAsyncArt:
                                 event = response.get("event", "")
                                 _LOGGER.debug("Art API: Connection event: %s", event)
 
-                                if event in (
-                                    MS_CHANNEL_READY_EVENT,
-                                    MS_CHANNEL_CONNECT_EVENT,
-                                ):
+                                if event == MS_CHANNEL_READY_EVENT:
+                                    connected = True
+                                    break
+                                if event == MS_CHANNEL_CONNECT_EVENT and include_token:
+                                    # Older working path: authenticated 8002
+                                    # often sends connect without a separate
+                                    # ready event, but still answers art-app
+                                    # requests. Tokenless connect alone is not
+                                    # sufficient on at least one 2024 Frame.
                                     connected = True
                                     break
                             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
@@ -182,7 +202,10 @@ class SamsungTVAsyncArt:
                             break
 
                     if not connected:
-                        connection_errors.append(f"port {port}: missing connect/ready event")
+                        auth = "tokened" if include_token else "tokenless"
+                        connection_errors.append(
+                            f"port {port} {auth}: missing ready event"
+                        )
                         await ws.close()
                         continue
 
@@ -194,24 +217,30 @@ class SamsungTVAsyncArt:
                     if not self._recv_task or self._recv_task.done():
                         self._recv_task = asyncio.create_task(self._receive_loop(ws))
 
-                    _LOGGER.debug("Art API: Connected and listening on port %s", port)
+                    _LOGGER.debug(
+                        "Art API: Connected and listening on port %s%s",
+                        port,
+                        " with token" if include_token else "",
+                    )
                     return True
 
                 except Exception as ex:
-                    connection_errors.append(f"port {port}: {ex}")
+                    auth = "tokened" if include_token else "tokenless"
+                    connection_errors.append(f"port {port} {auth}: {ex}")
                     self._connected = False
                     if ws and not ws.closed:
                         await ws.close()
-                    if index < len(candidate_ports) - 1:
+                    if index < len(candidates) - 1:
                         _LOGGER.debug(
-                            "Art API: Connection failed on port %s, trying fallback: %s",
+                            "Art API: Connection failed on port %s%s, trying fallback: %s",
                             port,
+                            " with token" if include_token else "",
                             ex,
                         )
 
             _LOGGER.warning(
-                "Art API: Connection failed after trying ports %s: %s",
-                candidate_ports,
+                "Art API: Connection failed after trying candidates %s: %s",
+                candidates,
                 "; ".join(connection_errors),
             )
             return False
