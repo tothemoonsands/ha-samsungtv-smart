@@ -10,6 +10,7 @@ import aiohttp
 import pytest
 
 from custom_components.samsungtv_artmode.api.art import (
+    MS_CHANNEL_CONNECT_EVENT,
     MS_CHANNEL_READY_EVENT,
     SamsungTVAsyncArt,
 )
@@ -42,6 +43,43 @@ async def test_open_falls_back_from_secure_port(caplog: pytest.LogCaptureFixture
         "ws://192.168.1.38:8001/"
     )
     assert "trying fallback" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_open_does_not_send_remote_token_to_art_channel() -> None:
+    """The art-app channel should be opened without the remote-control token."""
+    ready_message = MagicMock(
+        type=aiohttp.WSMsgType.TEXT,
+        data=json.dumps({"event": MS_CHANNEL_READY_EVENT}),
+    )
+    ws = MagicMock(closed=False)
+    ws.receive = AsyncMock(return_value=ready_message)
+
+    session = MagicMock(closed=False)
+    session.ws_connect = AsyncMock(return_value=ws)
+
+    art = SamsungTVAsyncArt("192.168.1.38", port=8002, token="secret", session=session)
+
+    assert await art.open() is True
+    assert "token=secret" not in session.ws_connect.await_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_open_accepts_connect_without_ready() -> None:
+    """Some Frame TVs send connect but never emit ms.channel.ready."""
+    connect_message = MagicMock(
+        type=aiohttp.WSMsgType.TEXT,
+        data=json.dumps({"event": MS_CHANNEL_CONNECT_EVENT}),
+    )
+    ws = MagicMock(closed=False)
+    ws.receive = AsyncMock(return_value=connect_message)
+
+    session = MagicMock(closed=False)
+    session.ws_connect = AsyncMock(return_value=ws)
+
+    art = SamsungTVAsyncArt("192.168.1.38", port=8001, session=session)
+
+    assert await art.open() is True
 
 
 @pytest.mark.asyncio

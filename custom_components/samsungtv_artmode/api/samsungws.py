@@ -297,6 +297,7 @@ class SamsungTVWS:
         self._client_art = None
         self._last_art_ping = datetime.min
         self._client_art_supported = 2
+        self._art_thread_disabled = False
 
         self._ping = Ping(self.host)
         self._status_callback = None
@@ -997,6 +998,21 @@ class SamsungTVWS:
                 self.stop_client()
             self._ping_thread = None
 
+    def disable_art_thread(self):
+        """Disable the legacy SamsungArt WebSocket thread.
+
+        The async Art API owns the art-app channel. Keeping both clients open
+        can make Frame TVs route d2d_service_message responses unpredictably.
+        """
+        self._art_thread_disabled = True
+        _LOGGING.debug("SamsungArt thread disabled (async Art API active)")
+        if self._ws_art:
+            try:
+                self._ws_art.close()
+            except Exception:
+                pass
+            self._ws_art = None
+
     def _start_client(self, *, start_all=False):
         """Start all thread that connect to the TV websocket"""
 
@@ -1015,8 +1031,12 @@ class SamsungTVWS:
                 self._client_control.daemon = True
                 self._client_control.start()
 
-            if self._client_art_supported > 0 and (
+            if (
+                not self._art_thread_disabled
+                and self._client_art_supported > 0
+                and (
                 self._client_art is None or not self._client_art.is_alive()
+                )
             ):
                 if self._client_art_supported > 1:
                     self._client_art_supported = 0

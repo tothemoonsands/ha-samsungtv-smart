@@ -500,6 +500,7 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             if entry_data is not None:
                 entry_data[DATA_ART_API] = self._art_api
             _LOGGER.debug("Created and registered shared Frame Art API instance")
+        self._ws.disable_art_thread()
         self._frame_tv_supported: bool | None = None
         self._frame_art_last_result: dict | None = None
         self._art_brightness_tv: int | None = None
@@ -1433,13 +1434,42 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             features |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
         return features
 
+    def _smartthings_reports_art(self) -> bool:
+        """Return True if SmartThings reports Art Mode as the running app."""
+        if not self._st or self._st.state == STStatus.STATE_OFF:
+            return False
+        return (self._st.channel_name or "").lower() == "art"
+
+    def _art_mode_is_on(self) -> bool | None:
+        """Return the best available Art Mode status."""
+        # A visible foreground app means the panel is showing that app, not art.
+        if self._running_app not in (None, DEFAULT_APP):
+            return False
+        if self._get_device_spec("PowerState") == "standby":
+            return False
+        if self._st is not None and self._st.state == STStatus.STATE_OFF:
+            return False
+
+        art_api = (
+            self.hass.data.get(DOMAIN, {}).get(self._entry_id, {}).get(DATA_ART_API)
+        ) or self._art_api
+        if art_api is not None and art_api.art_mode is not None:
+            if not art_api.art_mode and self._smartthings_reports_art():
+                return True
+            return art_api.art_mode
+
+        if self._ws.artmode_status != ArtModeStatus.Unsupported:
+            return self._ws.artmode_status == ArtModeStatus.On
+        if self._smartthings_reports_art():
+            return True
+        return None
+
     @property
     def extra_state_attributes(self):
         """Return the optional state attributes."""
         data = {ATTR_IP_ADDRESS: self._host}
-        if self._ws.artmode_status != ArtModeStatus.Unsupported:
-            status_on = self._ws.artmode_status == ArtModeStatus.On
-            data.update({ATTR_ART_MODE_STATUS: STATE_ON if status_on else STATE_OFF})
+        if (art_status := self._art_mode_is_on()) is not None:
+            data.update({ATTR_ART_MODE_STATUS: STATE_ON if art_status else STATE_OFF})
         if self._art_brightness_ui is not None:
             data[ATTR_BRIGHTNESS] = self._art_brightness_ui
         if self._art_brightness_tv is not None:
@@ -2185,8 +2215,12 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
             self._store_art_result(result)
             return result
         try:
-            await self._art_api.set_artmode(enabled)
-            result = {"service": "art_set_artmode", "success": True, "enabled": enabled}
+            success = await self._art_api.set_artmode(enabled)
+            result = {
+                "service": "art_set_artmode",
+                "success": success,
+                "enabled": enabled,
+            }
             self._store_art_result(result)
             return result
         except Exception as ex:

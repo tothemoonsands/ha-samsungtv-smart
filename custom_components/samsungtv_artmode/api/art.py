@@ -33,7 +33,9 @@ _LOGGER = logging.getLogger(__name__)
 ART_ENDPOINT = "com.samsung.art-app"
 D2D_SERVICE_MESSAGE_EVENT = "d2d_service_message"
 MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
+MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_READY_EVENT = "ms.channel.ready"
+ART_WS_HEARTBEAT = 20
 
 
 def _get_ssl_context() -> ssl.SSLContext:
@@ -80,6 +82,7 @@ class SamsungTVAsyncArt:
         
         # Async handling
         self._pending_requests: dict[str, asyncio.Future] = {}
+        self._art_mode_broadcast_waiters: list[asyncio.Future] = []
         self._recv_task: asyncio.Task | None = None
         self._connected = False
         self._ws_lifecycle_lock = asyncio.Lock()
@@ -93,8 +96,10 @@ class SamsungTVAsyncArt:
         """Get the WebSocket URL for the art API."""
         scheme = "wss" if port == 8002 else "ws"
         name = _serialize_string(self._name)
-        token_part = f"&token={self._token}" if self._token and port == 8002 else ""
-        return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}{token_part}"
+        # The art-app channel is separate from the remote-control channel. Newer
+        # Frame TVs can reject or stall art-app handshakes when the remote token
+        # is included, so keep this connection tokenless.
+        return f"{scheme}://{self._host}:{port}/api/v2/channels/{ART_ENDPOINT}?name={name}"
 
     def _get_candidate_ports(self) -> list[int]:
         """Return the ports to try for the art websocket."""
@@ -116,8 +121,18 @@ class SamsungTVAsyncArt:
     async def open(self) -> bool:
         """Open WebSocket connection and start listening."""
         async with self._ws_lifecycle_lock:
-            if self._ws and not self._ws.closed:
+            if self._ws and not self._ws.closed and self._connected:
                 return True
+            if self._ws and not self._connected:
+                try:
+                    if not self._ws.closed:
+                        await self._ws.close()
+                except Exception:
+                    pass
+                self._ws = None
+                if self._recv_task and not self._recv_task.done():
+                    self._recv_task.cancel()
+                self._recv_task = None
 
             session = await self._get_session()
             candidate_ports = self._get_candidate_ports()
@@ -135,31 +150,33 @@ class SamsungTVAsyncArt:
                         ws_url,
                         timeout=aiohttp.ClientTimeout(total=self._timeout),
                         ssl=ssl_context,
+                        heartbeat=ART_WS_HEARTBEAT,
                     )
 
                     # Wait for connection events
-                    ready = False
-                    for _ in range(5):  # Max 5 events to find ready
+                    connected = False
+                    for _ in range(3):
                         try:
-                            msg = await asyncio.wait_for(ws.receive(), timeout=self._timeout)
+                            msg = await asyncio.wait_for(ws.receive(), timeout=2)
                             if msg.type == aiohttp.WSMsgType.TEXT:
                                 response = json.loads(msg.data)
                                 event = response.get("event", "")
                                 _LOGGER.debug("Art API: Connection event: %s", event)
 
-                                if event == MS_CHANNEL_READY_EVENT:
-                                    ready = True
+                                if event in (
+                                    MS_CHANNEL_READY_EVENT,
+                                    MS_CHANNEL_CONNECT_EVENT,
+                                    MS_CHANNEL_CLIENT_CONNECT_EVENT,
+                                ):
+                                    connected = True
                                     break
-                                if event == MS_CHANNEL_CONNECT_EVENT:
-                                    # Continue waiting for ready
-                                    continue
                             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                                 break
                         except asyncio.TimeoutError:
                             break
 
-                    if not ready:
-                        connection_errors.append(f"port {port}: missing ready event")
+                    if not connected:
+                        connection_errors.append(f"port {port}: missing connect/ready event")
                         await ws.close()
                         continue
 
@@ -249,6 +266,11 @@ class SamsungTVAsyncArt:
                 if self._ws is ws:
                     self._ws = None
                 self._connected = False
+                self.art_mode = None
+                for future in self._pending_requests.values():
+                    if not future.done():
+                        future.cancel()
+                self._pending_requests.clear()
                 if self._recv_task and self._recv_task.done():
                     self._recv_task = None
 
@@ -273,8 +295,14 @@ class SamsungTVAsyncArt:
             self.art_mode = data.get("value") == "on"
         elif sub_event == "art_mode_changed":
             self.art_mode = data.get("status") == "on"
+            for future in self._art_mode_broadcast_waiters:
+                if not future.done():
+                    future.set_result(None)
+            self._art_mode_broadcast_waiters.clear()
         elif sub_event == "go_to_standby":
-            self.art_mode = False
+            # This is emitted for panel sleep/dim events too, so it is not a
+            # definitive "Art Mode off" signal. Let the next status read decide.
+            pass
         
         # Check for error
         if sub_event == "error":
@@ -336,7 +364,7 @@ class SamsungTVAsyncArt:
     ) -> dict[str, Any] | None:
         """Send an art API request and wait for response."""
         # Ensure connected
-        if not self._connected:
+        if not self._connected or not self._ws or self._ws.closed:
             if not await self.open():
                 return None
         
@@ -374,6 +402,7 @@ class SamsungTVAsyncArt:
         except Exception as ex:
             _LOGGER.debug("Art API: Error sending request: %s", ex)
             self._pending_requests.pop(request_key, None)
+            self._connected = False
             return None
 
     # ==================== REST API Methods ====================
@@ -844,11 +873,37 @@ class SamsungTVAsyncArt:
         """Set art mode on or off."""
         if isinstance(mode, bool):
             mode = "on" if mode else "off"
-        data = await self._send_art_request({
-            "request": "set_artmode_status",
-            "value": mode,
-        })
-        return data is not None
+        desired = mode == "on"
+
+        broadcast_future = asyncio.get_event_loop().create_future()
+        self._art_mode_broadcast_waiters.append(broadcast_future)
+        request_task = asyncio.ensure_future(
+            self._send_art_request({
+                "request": "set_artmode_status",
+                "value": mode,
+            })
+        )
+
+        try:
+            done, _ = await asyncio.wait(
+                {request_task, broadcast_future},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if request_task in done and request_task.result() is not None:
+                return True
+            if self.art_mode == desired:
+                return True
+            if request_task not in done:
+                await request_task
+                if request_task.result() is not None:
+                    return True
+        finally:
+            if broadcast_future in self._art_mode_broadcast_waiters:
+                self._art_mode_broadcast_waiters.remove(broadcast_future)
+            if not request_task.done():
+                request_task.cancel()
+
+        return self.art_mode == desired
 
     async def set_favourite(self, content_id: str, status: str = "on") -> bool:
         """Add or remove artwork from favorites."""

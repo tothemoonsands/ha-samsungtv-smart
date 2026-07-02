@@ -487,8 +487,14 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                 ):
                     state = self._hass.states.get(entity.entity_id)
                     if state:
-                        # TV is powered off if media_player state is "off" or "unavailable"
-                        return state.state in ("off", "unavailable")
+                        # Only a real "off" is a power-off signal. "unknown" or
+                        # "unavailable" means the media player is reconnecting,
+                        # so let the direct Art API fallback determine state.
+                        if state.state != "off":
+                            return False
+                        # A Frame showing art can report media_player "off" with
+                        # art_mode_status=on. Do not short-circuit that as off.
+                        return state.attributes.get("art_mode_status") != "on"
                     break
         except Exception as ex:
             _LOGGER.debug("Could not check media_player power state: %s", ex)
@@ -858,8 +864,8 @@ class FrameArtSensor(CoordinatorEntity, SensorEntity):
     async def async_set_artmode(self, enabled: bool) -> dict:
         """Enable or disable Art Mode."""
         try:
-            await self._art_api.set_artmode(enabled)
-            result = {"service": "set_artmode", "success": True, "enabled": enabled}
+            success = await self._art_api.set_artmode(enabled)
+            result = {"service": "set_artmode", "success": success, "enabled": enabled}
         except Exception as ex:
             result = {"service": "set_artmode", "error": str(ex)}
         self._last_service_result = result
