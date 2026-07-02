@@ -1,5 +1,14 @@
 # Changelog
 
+## 8.0.2
+- Fix Art websocket handshakes by ignoring `ms.channel.clientConnect` as a
+  successful Art API connection. Only `ms.channel.connect` and
+  `ms.channel.ready` indicate a usable host connection; accepting
+  `clientConnect` could leave brightness commands writing to a silent channel.
+- Shorten the direct `get_brightness` probe before falling back to Art Mode
+  settings, matching upstream behavior for newer Frame TVs that do not answer
+  the dedicated brightness read.
+
 ## 8.0.1
 - Stop using Samsung IP Control `backlightControl` as an Art Mode brightness
   fallback. On newer Frame TVs it can report/update panel backlight while the

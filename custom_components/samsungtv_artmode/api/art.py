@@ -33,7 +33,6 @@ _LOGGER = logging.getLogger(__name__)
 ART_ENDPOINT = "com.samsung.art-app"
 D2D_SERVICE_MESSAGE_EVENT = "d2d_service_message"
 MS_CHANNEL_CONNECT_EVENT = "ms.channel.connect"
-MS_CHANNEL_CLIENT_CONNECT_EVENT = "ms.channel.clientConnect"
 MS_CHANNEL_READY_EVENT = "ms.channel.ready"
 MS_ERROR_EVENT = "ms.error"
 ART_WS_HEARTBEAT = 20
@@ -174,7 +173,6 @@ class SamsungTVAsyncArt:
                                 if event in (
                                     MS_CHANNEL_READY_EVENT,
                                     MS_CHANNEL_CONNECT_EVENT,
-                                    MS_CHANNEL_CLIENT_CONNECT_EVENT,
                                 ):
                                     connected = True
                                     break
@@ -1022,7 +1020,7 @@ class SamsungTVAsyncArt:
 
     async def get_brightness(self) -> dict | None:
         """Get current art mode brightness."""
-        data = await self._send_art_request({"request": "get_brightness"})
+        data = await self._send_art_request({"request": "get_brightness"}, timeout=1.0)
         if not data or _is_error_response(data):
             data = await self.get_artmode_settings("brightness")
         return data
