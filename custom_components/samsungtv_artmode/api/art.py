@@ -1023,7 +1023,7 @@ class SamsungTVAsyncArt:
     async def get_brightness(self) -> dict | None:
         """Get current art mode brightness."""
         data = await self._send_art_request({"request": "get_brightness"})
-        if not data:
+        if not data or _is_error_response(data):
             data = await self.get_artmode_settings("brightness")
         return data
 
@@ -1033,7 +1033,7 @@ class SamsungTVAsyncArt:
             "request": "set_brightness",
             "value": value,
         })
-        return data is not None
+        return data is not None and not _is_error_response(data)
 
     async def get_color_temperature(self) -> dict | None:
         """Get current art mode color temperature."""

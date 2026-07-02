@@ -2215,14 +2215,29 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
     def _parse_art_brightness(self, result: Any) -> int | None:
         """Extract art brightness from Samsung API responses."""
         tv_brightness = result
+        if isinstance(result, list):
+            for item in result:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("item") == "brightness" or item.get("id") == "brightness":
+                    tv_brightness = item.get("value")
+                    if tv_brightness is None:
+                        tv_brightness = item.get("brightness")
+                    break
         if isinstance(result, dict):
             tv_brightness = result.get("value")
             if tv_brightness is None:
                 tv_brightness = result.get("brightness")
+            if tv_brightness is None and result.get("item") == "brightness":
+                tv_brightness = result.get("current_value")
             if tv_brightness is None:
                 data = result.get("data")
                 if isinstance(data, dict):
                     tv_brightness = data.get("value")
+                    if tv_brightness is None:
+                        tv_brightness = self._parse_art_brightness(data)
+                elif isinstance(data, list):
+                    tv_brightness = self._parse_art_brightness(data)
             if tv_brightness is None:
                 data = result.get("data")
                 if isinstance(data, str):
@@ -2232,6 +2247,10 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                         parsed = None
                     if isinstance(parsed, dict):
                         tv_brightness = parsed.get("value")
+                        if tv_brightness is None:
+                            tv_brightness = self._parse_art_brightness(parsed)
+                    elif isinstance(parsed, list):
+                        tv_brightness = self._parse_art_brightness(parsed)
         if isinstance(tv_brightness, str):
             try:
                 tv_brightness = int(tv_brightness)
@@ -3047,13 +3066,15 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
                 tv_brightness = max(1, min(10, round(brightness / 10)))
 
             _LOGGER.debug("Frame Art: Converting brightness %d -> %d (TV scale)", brightness, tv_brightness)
-            await self._art_api.set_brightness(tv_brightness)
+            success = await self._art_api.set_brightness(tv_brightness)
             result = {
                 "service": "art_set_brightness",
-                "success": True,
+                "success": success,
                 "brightness_requested_ui": brightness,
                 "brightness_requested_tv": tv_brightness,
             }
+            if success:
+                self._update_art_brightness_cache(tv_brightness)
             self._store_art_result(result)
             return result
         except Exception as ex:

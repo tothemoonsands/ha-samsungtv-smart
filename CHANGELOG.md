@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- Fix Art Mode brightness handling when Samsung returns websocket error objects
+  or consolidated settings payloads: brightness errors no longer look like
+  success, settings-style brightness is parsed, and successful writes update
+  the local brightness cache for HA verification.
 - Fix 2024 Frame IP Control status reads: avoid the side-effect-prone
   artModeControl getter and infer Art Mode off when the TV is actively showing
   a normal media_player source such as Apple TV.
