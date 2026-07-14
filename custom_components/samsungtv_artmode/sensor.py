@@ -347,17 +347,20 @@ class FrameArtCoordinator(DataUpdateCoordinator):
             return data
         
         try:
-            # First, try to get art_mode from media_player state (more reliable)
-            # This avoids double API calls and keeps sensor in sync with media_player
-            media_player_art_mode = self._get_media_player_art_mode()
-            if media_player_art_mode is not None:
-                data["art_mode"] = media_player_art_mode
-                _LOGGER.debug("Frame Art: Using media_player art_mode_status: %s", media_player_art_mode)
+            # IP Control is the most authoritative source when paired. It can
+            # correctly report Art Mode even while HDMI/source metadata is stale
+            # from the previous Apple TV session.
+            ip_art_mode = await self._async_get_ip_control_art_mode()
+            if ip_art_mode is not None:
+                data["art_mode"] = ip_art_mode
+                _LOGGER.debug("Frame Art: Using IP Control art_mode_status: %s", ip_art_mode)
             if data["art_mode"] is None:
-                ip_art_mode = await self._async_get_ip_control_art_mode()
-                if ip_art_mode is not None:
-                    data["art_mode"] = ip_art_mode
-                    _LOGGER.debug("Frame Art: Using IP Control art_mode_status: %s", ip_art_mode)
+                # Otherwise, try media_player state to avoid duplicate Art API
+                # calls and keep the sensor in sync with the main TV entity.
+                media_player_art_mode = self._get_media_player_art_mode()
+                if media_player_art_mode is not None:
+                    data["art_mode"] = media_player_art_mode
+                    _LOGGER.debug("Frame Art: Using media_player art_mode_status: %s", media_player_art_mode)
             if data["art_mode"] is None:
                 # Fallback to direct API call if media_player state not available
                 try:

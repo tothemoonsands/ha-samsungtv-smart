@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.1.2
+- Let paired IP Control status override stale HDMI/source metadata when deciding
+  whether Art Mode is on. This fixes cases where the TV is in Art Mode but HA
+  still has leftover Apple TV metadata and reports the Art Mode entities as off.
+
 ## 9.1.1
 - Report Art Mode as `off` instead of `unknown` when the TV is clearly showing
   a normal source/app such as Apple TV but the Art websocket does not return a

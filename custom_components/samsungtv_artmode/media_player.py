@@ -1542,24 +1542,26 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
 
     def _art_mode_is_on(self) -> bool | None:
         """Return the best available Art Mode status."""
-        # A visible foreground app means the panel is showing that app, not art.
-        if self._running_app not in (None, DEFAULT_APP):
-            return False
-        # HDMI/live viewing can still use DEFAULT_APP internally. When HA has a
-        # concrete media title/source while the media player is on, the panel is
-        # showing normal TV content, so Art Mode is definitively off.
-        if self._state == MediaPlayerState.ON:
-            known_source = self._source or self._get_source()
-            if known_source and known_source != DEFAULT_APP:
-                return False
-            if self._attr_media_title:
-                return False
         if self._get_device_spec("PowerState") == "standby":
             return False
         if self._st is not None and self._st.state == STStatus.STATE_OFF:
             return False
         if self._ip_art_mode is not None:
             return self._ip_art_mode
+        # A visible foreground app means the panel is showing that app, not art.
+        if self._running_app not in (None, DEFAULT_APP):
+            return False
+        # HDMI/live viewing can still use DEFAULT_APP internally. When HA has a
+        # concrete media title/source while the media player is on, the panel is
+        # showing normal TV content, so Art Mode is definitively off. This is
+        # lower priority than IP Control because HDMI metadata can remain stale
+        # immediately after entering Art Mode.
+        if self._state == MediaPlayerState.ON:
+            known_source = self._source or self._get_source()
+            if known_source and known_source != DEFAULT_APP:
+                return False
+            if self._attr_media_title:
+                return False
 
         art_api = (
             self.hass.data.get(DOMAIN, {}).get(self._entry_id, {}).get(DATA_ART_API)
