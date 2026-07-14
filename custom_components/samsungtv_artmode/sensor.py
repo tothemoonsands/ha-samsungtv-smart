@@ -512,7 +512,7 @@ class FrameArtCoordinator(DataUpdateCoordinator):
         return False
 
     def _get_media_player_art_mode(self) -> str | None:
-        """Get explicit art_mode_status from the linked media_player entity."""
+        """Get Art Mode status from the linked media_player entity."""
         try:
             # Find media_player entity for this config entry
             from homeassistant.helpers import entity_registry as er
@@ -528,6 +528,14 @@ class FrameArtCoordinator(DataUpdateCoordinator):
                         art_mode_status = state.attributes.get("art_mode_status")
                         if art_mode_status:
                             return art_mode_status
+                        if state.state not in ("off", "unavailable", "unknown"):
+                            # If the TV entity is on and HA knows it is showing a
+                            # real source/title/app, Art Mode is off even when the
+                            # art websocket cannot provide a status.
+                            for attr in ("source", "media_title", "app_id"):
+                                value = state.attributes.get(attr)
+                                if value and value not in ("Art Mode", "art"):
+                                    return "off"
                     break
         except Exception as ex:
             _LOGGER.debug("Could not get media_player art_mode_status: %s", ex)

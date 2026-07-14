@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.1.1
+- Report Art Mode as `off` instead of `unknown` when the TV is clearly showing
+  a normal source/app such as Apple TV but the Art websocket does not return a
+  status.
+
 ## 9.1.0
 - Restore upstream's tokenless Art websocket behavior for newer Frame firmware:
   accept `ms.channel.connect` on the Art channel and stop trying the remote

@@ -1545,6 +1545,15 @@ class SamsungTVDevice(SamsungTVEntity, MediaPlayerEntity):
         # A visible foreground app means the panel is showing that app, not art.
         if self._running_app not in (None, DEFAULT_APP):
             return False
+        # HDMI/live viewing can still use DEFAULT_APP internally. When HA has a
+        # concrete media title/source while the media player is on, the panel is
+        # showing normal TV content, so Art Mode is definitively off.
+        if self._state == MediaPlayerState.ON:
+            known_source = self._source or self._get_source()
+            if known_source and known_source != DEFAULT_APP:
+                return False
+            if self._attr_media_title:
+                return False
         if self._get_device_spec("PowerState") == "standby":
             return False
         if self._st is not None and self._st.state == STStatus.STATE_OFF:
